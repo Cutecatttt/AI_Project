@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>Finding Path on Lang Ha Street</title>
+  <link rel="icon" href="./assets/img/logo.svg"/>
   <style>
     #map {
       height: 100vh;
@@ -61,7 +62,7 @@
     paths: langHaCoordinates,
     strokeOpacity: 0,
     fillColor: '#FFE5CC',
-    fillOpacity: 0.3,
+    fillOpacity: 0.5,
     map:map
   });
     var lineSymbol = {
@@ -88,7 +89,7 @@
         map: map,
         title: 'Start Location', 
         icon: {
-        url: 'icon.png',
+        url: './assets/img/icon.png',
         scaledSize: new google.maps.Size(20, 30)
         }
     });
@@ -96,7 +97,7 @@
         map: map,
         title: 'End Location', 
         icon: {
-        url: 'icon.png',
+        url: './assets/img/icon.png',
         scaledSize: new google.maps.Size(20, 30)
         } 
     });
