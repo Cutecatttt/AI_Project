@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Finding Path on Lang Ha Street</title>
+  <style>
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    function initMap() {
+    var langHa = { lat: 21.0175, lng: 105.81 };
+
+    var map = new google.maps.Map(document.getElementById('map'), {
+      center: langHa,
+      zoom: 17
+    });
+
+    var langHaCoordinates = [
+  { lat: 21.024927161629794, lng: 105.81145650153924},
+  { lat: 21.02486433010351, lng: 105.81151220877237 },
+  { lat: 21.021484448305905, lng: 105.81195608281647 },
+  { lat: 21.021380727022844, lng: 105.81100123426229 },
+  { lat: 21.020411037192908, lng: 105.81056817615364 },
+  { lat: 21.020045372752882, lng: 105.81133469166919 },
+  { lat: 21.018742685913836, lng: 105.81057005948323 },
+  { lat: 21.01661019287588, lng: 105.81492808625161 },
+  { lat: 21.016738530085043, lng: 105.81502413610242 },
+  { lat: 21.01609156877151, lng: 105.81595638469759 },
+  { lat: 21.016056407750728, lng: 105.81592813474147 },
+  { lat: 21.01406628042467, lng: 105.81871546388143 },
+  { lat: 21.014126054952676, lng: 105.81876631380244 },
+  { lat: 21.014707976317993, lng: 105.8179583650254 },
+  { lat: 21.013981892814975, lng: 105.81900173011935 },
+  { lat: 21.011956712719037, lng: 105.81721981134484 },
+  { lat: 21.01237459216062, lng: 105.81699161402692 },
+  { lat: 21.013993509674197, lng: 105.81480322916507 },
+  { lat: 21.01298322269252, lng: 105.8141056376311 },
+  { lat: 21.01261578195293, lng: 105.81491170306926 },
+  { lat: 21.012264163171448, lng: 105.81473090335221 },
+  { lat: 21.011945947460823, lng: 105.81515841937086 },
+  { lat: 21.01043835004029, lng: 105.81412271060523 },
+  { lat: 21.010211552711, lng: 105.81417732718329 },
+  { lat: 21.010099032974328, lng: 105.81406432735709 },
+  { lat: 21.00998651315821, lng: 105.81415472721667 },
+  { lat: 21.009895090745136, lng: 105.81408504399158 },
+  { lat: 21.00911096542405, lng: 105.81468017642129 },
+  { lat: 21.008504408260634, lng: 105.81402101075967 },
+  { lat: 21.01475759550293, lng: 105.8052408790318 },
+  { lat: 21.016072623518387, lng: 105.80617877762687 },
+  { lat: 21.016464668388306, lng: 105.8061599443228 },
+  { lat: 21.016992081402243, lng: 105.80667032689044 },
+  { lat: 21.024927161629794, lng: 105.81145650153924},
+    ];
+
+    var langHaArea = new google.maps.Polygon({
+    paths: langHaCoordinates,
+    strokeOpacity: 0,
+    fillColor: '#FFE5CC',
+    fillOpacity: 0.3,
+    map:map
+  });
+    var lineSymbol = {
+        path: 'M 0,-1 0,1',
+        strokeOpacity: 0.75,
+        scale: 1
+    };
+
+
+    var langHaBorder = new google.maps.Polyline({
+        path: langHaCoordinates, 
+        strokeColor: '#FF0000',
+        strokeOpacity: 0, 
+        icons: [{
+        icon: lineSymbol,
+        offset: '0',
+        repeat: '5px' 
+        }],
+        map: map
+    });
+  
+    var flag = 0;
+    var markerStart = new google.maps.Marker({
+        map: map,
+        title: 'Start Location', 
+        icon: {
+        url: 'icon.png',
+        scaledSize: new google.maps.Size(20, 30)
+        }
+    });
+    var markerEnd = new google.maps.Marker({
+        map: map,
+        title: 'End Location', 
+        icon: {
+        url: 'icon.png',
+        scaledSize: new google.maps.Size(20, 30)
+        } 
+    });
+
+    var totalDistance = 0;
+    var path = new google.maps.Polyline({
+                path: [],
+                geodesic: true,
+                strokeColor: '#3399FF',
+                strokeOpacity: 1.0,
+                strokeWeight: 4,
+                map:map
+            });
+    langHaArea.addListener('click', function(langHaAreaMouseEvent) {
+    var clickedLocation = langHaAreaMouseEvent.latLng;
+    if (google.maps.geometry.poly.containsLocation(clickedLocation, langHaArea)) 
+    {
+        flag = 1 - flag;
+        if (flag == 1) 
+        {
+            path.setPath([]);
+            markerEnd.setPosition(null);
+            markerStart.setPosition(clickedLocation);
+        }
+        else
+        {
+            markerEnd.setPosition(clickedLocation);
+            let pathCoordinates = [
+              { lat: markerStart.getPosition().lat(), lng: markerStart.getPosition().lng() },
+              { lat: markerEnd.getPosition().lat(), lng: markerEnd.getPosition().lng() }
+            ];
+            path.setPath(pathCoordinates);
+        }
+    }
+    });
+    let infoWindow = new google.maps.InfoWindow();
+
+    path.addListener('mouseover', function(event) {
+        infoWindow.setContent(`Total distance: ${totalDistance.toFixed(2)}m`);
+        infoWindow.setPosition(event.latLng);
+        infoWindow.open(map);
+    });
+
+    path.addListener('mouseout', function() {
+        infoWindow.close();
+    });
+    map.addListener('click', function(mapsMouseEvent)
+    {
+        flag = 0;
+        var clickedLocation = mapsMouseEvent.latLng;
+        if (!google.maps.geometry.poly.containsLocation(clickedLocation, langHaArea)) 
+        {
+            markerStart.setPosition(null);
+            markerEnd.setPosition(null);
+            path.setPath([]);
+        }
+    });
+  }
+  
+  </script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDTUO3uE5ySdbJUCmcbymI5RBfW-cRZCng&callback=initMap&libraries=geometry" async defer></script>
+</body>
+</html>
