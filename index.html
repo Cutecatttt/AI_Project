@@ -1,163 +1,3150 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Finding Path on Lang Ha Street</title>
-  <link rel="icon" href="./assets/img/logo.svg"/>
-  <style>
-    #map {
-      height: 100vh;
-      width: 100%;
-    }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <script>
-    function initMap() {
-    var langHa = { lat: 21.0175, lng: 105.81 };
+  <head>
+    <title>Finding Path on Lang Ha Street</title>
+    <link rel="icon" href="./assets/img/logo.svg"/>
+    <style>
+      #map {
+        height: 100vh;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="adminControlPanel" style="position: absolute; top: 10px; left: 10px; background-color: white; padding: 15px; border: 1px solid #ccc; border-radius: 5px; z-index: 1000; font-family: Arial, sans-serif;">
+      <h4>Admin Controls</h4>
+      <button id="btnToggleBlockMode">Bắt đầu/Dừng Chặn Đường</button>
+      <div id="blockingInstructions" style="display: none; margin-top: 10px;">
+          <p>Click vào các node liên tiếp để chọn đoạn đường cần chặn. Click lại vào node đã chọn để bỏ chọn.</p>
+          <button id="btnConfirmBlockSegment" disabled>Xác nhận Chặn Đoạn Này</button>
+          <button id="btnClearSelection">Xóa Lựa Chọn Hiện Tại</button>
+      </div>
+      <div style="margin-top: 10px;">
+          <button id="btnShowBlockedSegments">Hiện/Ẩn Các Đoạn Đã Chặn</button>
+      </div>
+      <div id="blockedSegmentsList" style="margin-top:10px; max-height: 200px; overflow-y:auto; display:none;">
+          <p><strong>Các đoạn đường đã chặn:</strong></p>
+          {/* Danh sách các đoạn bị chặn sẽ được thêm vào đây bằng JavaScript */}
+      </div>
+  </div>
+    <script>
+      // =======================================================================
+      // PHẦN CODE MỚI THÊM VÀO (ĐỊNH NGHĨA GRAPH, THUẬT TOÁN)
+      // =======================================================================
 
-    var map = new google.maps.Map(document.getElementById('map'), {
-      center: langHa,
-      zoom: 17
-    });
+      // 1. Dữ liệu đồ thị (Nodes và Graph)
+      // Các nút này nên là các giao lộ, điểm uốn cong quan trọng
+      const nodes = {
+      'node1': {lat: 21.024768, lng: 105.811503},
+      'node2': {lat: 21.024212, lng: 105.811586},
+      'node3': {lat: 21.024206, lng: 105.811526},
+      'node4': {lat: 21.024579, lng: 105.811471},
+      'node5': {lat: 21.023801, lng: 105.811589},
+      'node6': {lat: 21.023771, lng: 105.811303},
+      'node7': {lat: 21.023110, lng: 105.811714},
+      'node8': {lat: 21.022783, lng: 105.811751},
+      'node9': {lat: 21.022317, lng: 105.811827},
+      'node10': {lat: 21.021896, lng: 105.811874},
+      'node11': {lat: 21.021862, lng: 105.811233},
+      'node12': {lat: 21.021594, lng: 105.811921},
+      'node13': {lat: 21.021509, lng: 105.811921},
+      'node14': {lat: 21.020499, lng: 105.810426},
+      'node15': {lat: 21.020042, lng: 105.810170},
+      'node16': {lat: 21.019999, lng: 105.810447},
+      'node17': {lat: 21.019900, lng: 105.810667},
+      'node18': {lat: 21.019766, lng: 105.810879},
+      'node19': {lat: 21.020162, lng: 105.809848},
+      'node20': {lat: 21.020286, lng: 105.809597},
+      'node21': {lat: 21.020350, lng: 105.809514},
+      'node22': {lat: 21.020403, lng: 105.809404},
+      'node23': {lat: 21.019247, lng: 105.810589},
+      'node24': {lat: 21.019361, lng: 105.810382},
+      'node25': {lat: 21.019527, lng: 105.810021},
+      'node26': {lat: 21.019718, lng: 105.810563},
+      'node27': {lat: 21.019953, lng: 105.809747},
+      'node28': {lat: 21.019715, lng: 105.809597},
+      'node29': {lat: 21.019831, lng: 105.809364},
+      'node30': {lat: 21.019941, lng: 105.809160},
+      'node31': {lat: 21.019734, lng: 105.808667},
+      'node32': {lat: 21.019654, lng: 105.808527},
+      'node33': {lat: 21.019611, lng: 105.808680},
+      'node34': {lat: 21.019517, lng: 105.808911},
+      'node35': {lat: 21.019282, lng: 105.809377},
+      'node36': {lat: 21.019004, lng: 105.809946},
+      'node37': {lat: 21.018629, lng: 105.810714},
+      'node38': {lat: 21.018313, lng: 105.811325},
+      'node39': {lat: 21.018099, lng: 105.811767},
+      'node40': {lat: 21.018027, lng: 105.811903},
+      'node41': {lat: 21.017678, lng: 105.812579},
+      'node42': {lat: 21.017589, lng: 105.812771},
+      'node43': {lat: 21.017431, lng: 105.813068},
+      'node44': {lat: 21.017145, lng: 105.813658},
+      'node45': {lat: 21.016688, lng: 105.814586},
+      'node46': {lat: 21.016557, lng: 105.814823},
+      'node47': {lat: 21.016330, lng: 105.814642},
+      'node48': {lat: 21.016446, lng: 105.814983},
+      'node49': {lat: 21.016313, lng: 105.814913},
+      'node50': {lat: 0, lng: 0},
+      'node51': {lat: 21.016349, lng: 105.815181},
+      'node52': {lat: 21.016642, lng: 105.815118},
+      'node53': {lat: 21.016459, lng: 105.815211},
+      'node54': {lat: 21.016167, lng: 105.815485},
+      'node55': {lat: 21.016171, lng: 105.815556},
+      'node56': {lat: 21.015986, lng: 105.815817},
+      'node57': {lat: 21.015839, lng: 105.816037},
+      'node58': {lat: 21.015511, lng: 105.816473},
+      'node59': {lat: 21.015346, lng: 105.816712},
+      'node60': {lat: 21.015132, lng: 105.816984},
+      'node61': {lat: 21.014645, lng: 105.817729},
+      'node62': {lat: 21.014317, lng: 105.818177},
+      'node63': {lat: 21.013921, lng: 105.818724},
+      'node64': {lat: 21.013367, lng: 105.818259},
+      'node65': {lat: 21.013561, lng: 105.818003},
+      'node66': {lat: 21.013660, lng: 105.817885},
+      'node67': {lat: 21.013783, lng: 105.817722},
+      'node68': {lat: 21.013923, lng: 105.817573},
+      'node69': {lat: 21.014024, lng: 105.817438},
+      'node70': {lat: 21.014131, lng: 105.817301},
+      'node71': {lat: 21.014195, lng: 105.817197},
+      'node72': {lat: 21.014406, lng: 105.816893},
+      'node73': {lat: 21.014648, lng: 105.816597},
+      'node74': {lat: 21.014776, lng: 105.816702},
+      'node75': {lat: 21.014891, lng: 105.816510},
+      'node76': {lat: 21.014971, lng: 105.816389},
+      'node77': {lat: 21.014359, lng: 105.816302},
+      'node78': {lat: 21.014091, lng: 105.816622},
+      'node79': {lat: 21.013861, lng: 105.816873},
+      'node80': {lat:0, lng: 0},
+      'node81': {lat: 21.014030, lng: 105.816069},
+      'node82': {lat: 21.013891, lng: 105.816229},
+      'node83': {lat: 21.013739, lng: 105.816450},
+      'node84': {lat: 21.013727, lng: 105.816784},
+      'node85': {lat: 21.013668, lng: 105.816513},
+      'node86': {lat: 21.013436, lng: 105.816820},
+      'node87': {lat: 21.013221, lng: 105.817109},
+      'node88': {lat: 21.013045, lng: 105.817361},
+      'node89': {lat: 21.012788, lng: 105.817695},
+      'node90': {lat: 21.013685, lng: 105.817641},
+      'node91': {lat: 21.013522, lng: 105.817608},
+      'node92': {lat: 21.014271, lng: 105.815761},
+      'node93': {lat: 21.014597, lng: 105.816012},
+      'node94': {lat: 0, lng: 0},
+      'node95': {lat: 21.015079, lng: 105.816478},
+      'node96': {lat: 21.014424, lng: 105.815560},
+      'node97': {lat: 21.014728, lng: 105.815841},
+      'node98': {lat: 21.014782, lng: 105.815758},
+      'node99': {lat: 21.015274, lng: 105.816179},
+      'node100': {lat: 21.015490, lng: 105.815879},
+      'node101': {lat: 21.015238, lng: 105.815648},
+      'node102': {lat: 21.015242, lng: 105.815439},
+      'node103': {lat: 21.014941, lng: 105.815431},
+      'node104': {lat: 21.014502, lng: 105.815371},
+      'node105': {lat: 21.014022, lng: 105.814750},
+      'node106': {lat: 21.014128, lng: 105.814614},
+      'node107': {lat: 21.014298, lng: 105.814382},
+      'node108': {lat: 21.014725, lng: 105.813835},
+      'node109': {lat: 21.014839, lng: 105.813683},
+      'node110': {lat: 21.015100, lng: 105.813283},
+      'node111': {lat: 21.015150, lng: 105.813179},
+      'node112': {lat: 21.015443, lng: 105.812693},
+      'node113': {lat: 21.015511, lng: 105.812586},
+      'node114': {lat: 21.015644, lng: 105.812390},
+      'node115': {lat: 21.015687, lng: 105.812253},
+      'node116': {lat: 21.015850, lng: 105.811980},
+      'node117': {lat: 21.015938, lng: 105.811791},
+      'node118': {lat: 21.016126, lng: 105.811464},
+      'node119': {lat: 21.016181, lng: 105.811371},
+      'node120': {lat: 21.016204, lng: 105.811334},
+      'node121': {lat: 21.016278, lng: 105.811198},
+      'node122': {lat: 21.016331, lng: 105.811116},
+      'node123': {lat: 21.016542, lng: 105.810781},
+      'node124': {lat: 21.016832, lng: 105.811028},
+      'node125': {lat: 21.017206, lng: 105.811245},
+      'node126': {lat: 21.017407, lng: 105.811346},
+      'node127': {lat: 21.017660, lng: 105.811494},
+      'node128': {lat: 21.017737, lng: 105.811556},
+      'node129': {lat: 21.017591, lng: 105.811802},
+      'node130': {lat: 21.017691, lng: 105.811872},
+      'node131': {lat: 21.017410, lng: 105.812108},
+      'node132': {lat: 21.017425, lng: 105.812457},
+      'node133': {lat: 21.017275, lng: 105.812355},
+      'node134': {lat: 21.017197, lng: 105.812557},
+      'node135': {lat: 21.017040, lng: 105.812856},
+      'node136': {lat: 21.017183, lng: 105.812951},
+      'node137': {lat: 21.017018, lng: 105.813222},
+      'node138': {lat: 21.016892, lng: 105.813510},
+      'node139': {lat: 21.016768, lng: 105.814096},
+      'node140': {lat: 21.016955, lng: 105.813700},
+      'node141': {lat: 21.016458, lng: 105.813421},
+      'node142': {lat: 21.016525, lng: 105.813295},
+      'node143': {lat: 21.016651, lng: 105.813015},
+      'node144': {lat: 21.016866, lng: 105.812749},
+      'node145': {lat: 21.016399, lng: 105.812727},
+      'node146': {lat: 21.016726, lng: 105.812274},
+      'node147': {lat: 21.016640, lng: 105.812242},
+      'node148': {lat: 21.016807, lng: 105.812105},
+      'node149': {lat: 21.016744, lng: 105.812063},
+      'node150': {lat: 21.016968, lng: 105.811828},
+      'node151': {lat: 21.016901, lng: 105.811783},
+      'node152': {lat: 21.017088, lng: 105.811570},
+      'node153': {lat: 21.017050, lng: 105.811513},
+      'node154': {lat: 21.016588, lng: 105.811200},
+      'node155': {lat: 21.016384, lng: 105.811455},
+      'node156': {lat: 21.016143, lng: 105.811904},
+      'node157': {lat: 21.016394, lng: 105.812064},
+      'node158': {lat: 21.016628, lng: 105.811620},
+      'node159': {lat: 21.017736, lng: 105.809253},
+      'node160': {lat: 21.018031, lng: 105.809414},
+      'node161': {lat: 21.018250, lng: 105.809536},
+      'node162': {lat: 21.018471, lng: 105.809660},
+      'node163': {lat: 21.017606, lng: 105.809530},
+      'node164': {lat: 21.017368, lng: 105.809980},
+      'node165': {lat: 21.017088, lng: 105.810525},
+      'node166': {lat: 21.016975, lng: 105.810745},
+      'node167': {lat: 21.017804, lng: 105.809630},
+      'node168': {lat: 21.017910, lng: 105.809697},
+      'node169': {lat: 21.017743, lng: 105.809814},
+      'node170': {lat: 21.017839, lng: 105.809867},
+      'node171': {lat: 21.018040, lng: 105.810012},
+      'node172': {lat: 21.018368, lng: 105.809926},
+      'node173': {lat: 21.018529, lng: 105.810051},
+      'node174': {lat: 21.018473, lng: 105.810232},
+      'node175': {lat: 21.018409, lng: 105.810371},
+      'node176': {lat: 21.017578, lng: 105.810127},
+      'node177': {lat: 21.017913, lng: 105.810316},
+      'node178': {lat: 21.018320, lng: 105.810548},
+      'node179': {lat: 21.018192, lng: 105.810811},
+      'node180': {lat: 21.018038, lng: 105.810736},
+      'node181': {lat: 21.017785, lng: 105.810567},
+      'node182': {lat: 21.017458, lng: 105.810385},
+      'node183': {lat: 21.018047, lng: 105.811164},
+      'node184': {lat: 21.017872, lng: 105.811065},
+      'node185': {lat: 21.017610, lng: 105.810934},
+      'node186': {lat: 21.017428, lng: 105.810704},
+      'node187': {lat: 21.017330, lng: 105.810653},
+      'node188': {lat: 21.017315, lng: 105.810940},
+      'node189': {lat: 21.016341, lng: 105.810500},
+      'node190': {lat: 21.016252, lng: 105.810366},
+      'node191': {lat: 21.016127, lng: 105.810181},
+      'node192': {lat: 21.015764, lng: 105.809654},
+      'node193': {lat: 21.015481, lng: 105.809390},
+      'node194': {lat: 21.015676, lng: 105.809105},
+      'node195': {lat: 21.015724, lng: 105.809025},
+      'node196': {lat: 21.016134, lng: 105.808244},
+      'node197': {lat: 21.016283, lng: 105.807967},
+      'node198': {lat: 21.016597, lng: 105.807403},
+      'node199': {lat: 21.016973, lng: 105.806702},
+      'node200': {lat: 21.017361, lng: 105.806941},
+      'node201': {lat: 21.017709, lng: 105.807156},
+      'node202': {lat: 21.017993, lng: 105.807320},
+      'node203': {lat: 21.018566, lng: 105.807649},
+      'node204': {lat: 0, lng: 0},
+      'node205': {lat: 21.017125, lng: 105.809852},
+      'node206': {lat: 21.016734, lng: 105.809631},
+      'node207': {lat: 21.015972, lng: 105.809157},
+      'node208': {lat: 21.016163, lng: 105.809264},
+      'node209': {lat: 21.015908, lng: 105.809433},
+      'node210': {lat: 21.016382, lng: 105.809699},
+      'node211': {lat: 21.016653, lng: 105.809836},
+      'node212': {lat: 21.016612, lng: 105.809929},
+      'node213': {lat: 21.016487, lng: 105.810195},
+      'node214': {lat: 21.016997, lng: 105.810122},
+      'node215': {lat: 21.016872, lng: 105.810400},
+      'node216': {lat: 21.016586, lng: 105.808527},
+      'node217': {lat: 21.016717, lng: 105.808926},
+      'node218': {lat: 21.016816, lng: 105.808781},
+      'node219': {lat: 21.016788, lng: 105.808630},
+      'node220': {lat: 21.016969, lng: 105.808235},
+      'node221': {lat: 21.017107, lng: 105.808014},
+      'node222': {lat: 21.017142, lng: 105.807941},
+      'node223': {lat: 21.017293, lng: 105.807990},
+      'node224': {lat: 21.017111, lng: 105.808402},
+      'node225': {lat: 21.017292, lng: 105.808519},
+      'node226': {lat: 21.017487, lng: 105.808092},
+      'node227': {lat: 21.017447, lng: 105.808595},
+      'node228': {lat: 21.017632, lng: 105.808198},
+      'node229': {lat: 21.018080, lng: 105.808193},
+      'node230': {lat: 21.018282, lng: 105.807706},
+      'node231': {lat: 21.017971, lng: 105.807417},
+      'node232': {lat: 21.015132, lng: 105.809246},
+      'node233': {lat: 21.014893, lng: 105.809496},
+      'node234': {lat: 21.014742, lng: 105.809789},
+      'node235': {lat: 21.014533, lng: 105.810160},
+      'node236': {lat: 21.014498, lng: 105.810217},
+      'node237': {lat: 21.014356, lng: 105.810499},
+      'node238': {lat: 21.014278, lng: 105.810582},
+      'node239': {lat: 21.014156, lng: 105.810821},
+      'node240': {lat: 21.013997, lng: 105.811053},
+      'node241': {lat: 21.013904, lng: 105.811253},
+      'node242': {lat: 21.013723, lng: 105.811536},
+      'node243': {lat: 21.013641, lng: 105.811668},
+      'node244': {lat: 21.013501, lng: 105.811921},
+      'node245': {lat: 21.013388, lng: 105.812096},
+      'node246': {lat: 21.013100, lng: 105.812574},
+      'node247': {lat: 21.013712, lng: 105.812964},
+      'node248': {lat: 21.014289, lng: 105.813352},
+      'node249': {lat: 21.014420, lng: 105.813433},
+      'node250': {lat: 21.015120, lng: 105.810512},
+      'node251': {lat: 21.016037, lng: 105.810703},
+      'node252': {lat: 21.016186, lng: 105.810876},
+      'node253': {lat: 21.016138, lng: 105.810990},
+      'node254': {lat: 21.015914, lng: 105.810964},
+      'node255': {lat: 21.015797, lng: 105.811118},
+      'node256': {lat: 21.015699, lng: 105.811189},
+      'node257': {lat: 21.015505, lng: 105.811509},
+      'node258': {lat: 21.015572, lng: 105.811568},
+      'node259': {lat: 21.015353, lng: 105.811419},
+      'node260': {lat: 21.015302, lng: 105.811394},
+      'node261': {lat: 21.014808, lng: 105.811117},
+      'node262': {lat: 0, lng: 0},
+      'node263': {lat: 21.014942, lng: 105.810870},
+      'node264': {lat: 21.015210, lng: 105.811692},
+      'node265': {lat: 21.014707, lng: 105.811335},
+      'node266': {lat: 21.015291, lng: 105.812082},
+      'node267': {lat: 21.014873, lng: 105.812351},
+      'node268': {lat: 21.013956, lng: 105.811672},
+      'node269': {lat: 21.014013, lng: 105.811619},
+      'node270': {lat: 21.014469, lng: 105.812294},
+      'node271': {lat: 21.014200, lng: 105.812128},
+      'node272': {lat: 21.014461, lng: 105.813344},
+      'node273': {lat: 21.014871, lng: 105.813514},
+      'node274': {lat: 21.015032, lng: 105.813261},
+      'node275': {lat: 21.014592, lng: 105.812966},
+      'node276': {lat: 0, lng: 0},
+      'node277': {lat: 21.013735, lng: 105.813162},
+      'node278': {lat: 21.013074, lng: 105.812750},
+      'node279': {lat: 21.012995, lng: 105.812702},
+      'node280': {lat: 0, lng: 0},
+      'node281': {lat: 0, lng: 0},
+      'node282': {lat: 0, lng: 0},
+      'node283': {lat: 21.012159, lng: 105.814227},
+      'node284': {lat: 21.011887, lng: 105.814585},
+      'node285': {lat: 21.011831, lng: 105.814694},
+      'node286': {lat: 21.012105, lng: 105.814924},
+      'node287': {lat: 21.012174, lng: 105.814822},
+      'node288': {lat: 21.012349, lng: 105.814615},
+      'node289': {lat: 21.012435, lng: 105.814490},
+      'node290': {lat: 21.015155, lng: 105.807041},
+      'node291': {lat: 21.014806, lng: 105.806710},
+      'node292': {lat: 21.014787, lng: 105.807315},
+      'node293': {lat: 21.014539, lng: 105.806955},
+      'node294': {lat: 21.014191, lng: 105.806534},
+      'node295': {lat: 0, lng: 0},
+      'node296': {lat: 21.014668, lng: 105.807436},
+      'node297': {lat: 21.014422, lng: 105.807682},
+      'node298': {lat: 21.014312, lng: 105.807807},
+      'node299': {lat: 21.014098, lng: 105.808047},
+      'node300': {lat: 21.013901, lng: 105.808280},
+      'node301': {lat: 21.013687, lng: 105.808512},
+      'node302': {lat: 21.013503, lng: 105.808745},
+      'node303': {lat: 21.013272, lng: 105.808999},
+      'node304': {lat: 21.012935, lng: 105.809386},
+      'node305': {lat: 21.012634, lng: 105.809730},
+      'node306': {lat: 21.012514, lng: 105.809604},
+      'node307': {lat: 21.012166, lng: 105.809307},
+      'node308': {lat: 21.015306, lng: 105.807789},
+      'node309': {lat: 21.015142, lng: 105.807968},
+      'node310': {lat: 21.015379, lng: 105.808366},
+      'node311': {lat: 21.015149, lng: 105.808648},
+      'node312': {lat: 21.014995, lng: 105.808516},
+      'node313': {lat: 21.014477, lng: 105.808641},
+      'node314': {lat: 21.014908, lng: 105.809039},
+      'node315': {lat: 21.014811, lng: 105.809139},
+      'node316': {lat: 21.014380, lng: 105.808709},
+      'node317': {lat: 21.014296, lng: 105.808609},
+      'node318': {lat: 21.014674, lng: 105.809341},
+      'node319': {lat: 21.014480, lng: 105.809624},
+      'node320': {lat: 21.014177, lng: 105.809440},
+      'node321': {lat: 21.014062, lng: 105.809335},
+      'node322': {lat: 21.014114, lng: 105.809238},
+      'node323': {lat: 21.013916, lng: 105.809095},
+      'node324': {lat: 21.013852, lng: 105.809036},
+      'node325': {lat: 21.014188, lng: 105.810003},
+      'node326': {lat: 21.013571, lng: 105.809471},
+      'node327': {lat: 21.013414, lng: 105.809660},
+      'node328': {lat: 21.013571, lng: 105.809246},
+      'node329': {lat: 21.013319, lng: 105.809562},
+      'node330': {lat: 21.013285, lng: 105.809638},
+      'node331': {lat: 21.013557, lng: 105.810021},
+      'node332': {lat: 21.013985, lng: 105.810286},
+      'node333': {lat: 21.013670, lng: 105.810761},
+      'node334': {lat: 0, lng: 0},
+      'node335': {lat: 0, lng: 0},
+      'node336': {lat: 21.014758, lng: 105.809405},
+      'node337': {lat: 21.014595, lng: 105.809699},
+      'node338': {lat: 0, lng: 0},
+      'node339': {lat: 21.014341, lng: 105.810115},
+      'node340': {lat: 21.014129, lng: 105.810481},
+      'node341': {lat: 0, lng: 0},
+      'node342': {lat: 0, lng: 0},
+      'node343': {lat:0, lng: 0},
+      'node344': {lat: 0, lng: 0},
+      'node345': {lat: 21.011646, lng: 105.810043},
+      'node346': {lat: 21.011489, lng: 105.810339},
+      'node347': {lat: 21.011856, lng: 105.809757},
+      'node348': {lat: 21.010942, lng: 105.811087},
+      'node349': {lat: 21.011617, lng: 105.811453},
+      'node350': {lat: 21.011740, lng: 105.811563},
+      'node351': {lat: 21.011870, lng: 105.811641},
+      'node352': {lat: 0, lng: 0},
+      'node353': {lat: 0, lng: 0},
+      'node354': {lat: 0, lng: 0},
+      'node355': {lat: 0, lng: 0},
+      'node356': {lat: 0, lng: 0},
+      'node357': {lat: 0, lng: 0},
+      'node358': {lat: 0, lng: 0},
+      'node359': {lat: 0, lng: 0},
+      'node360': {lat: 21.011416, lng: 105.811597},
+      'node361': {lat: 21.011979, lng: 105.812044},
+      'node362': {lat: 21.012885, lng: 105.812896},
+      'node363': {lat: 21.012710, lng: 105.813197},
+      'node364': {lat: 21.012504, lng: 105.813534},
+      'node365': {lat: 21.012354, lng: 105.813804},
+      'node366': {lat: 0, lng: 0},
+      'node367': {lat: 21.012081, lng: 105.814368},
+      'node368': {lat: 0, lng: 0},
+      'node369': {lat: 0, lng: 0},
+      'node370': {lat: 0, lng: 0},
+      'node371': {lat: 21.010756, lng: 105.811386},
+      'node372': {lat: 21.010477, lng: 105.811850},
+      'node373': {lat: 21.010377, lng: 105.812016},
+      'node374': {lat: 21.010148, lng: 105.812402},
+      'node375': {lat: 21.009949, lng: 105.812698},
+      'node376': {lat: 21.009841, lng: 105.812883},
+      'node377': {lat: 21.009364, lng: 105.813628},
+      'node378': {lat: 21.009434, lng: 105.813658},
+      'node379': {lat: 21.009235, lng: 105.813838},
+      'node380': {lat: 21.009703, lng: 105.813503},
+      'node381': {lat: 21.009990, lng: 105.813145},
+      'node382': {lat: 21.010036, lng: 105.813070},
+      'node383': {lat: 21.010101, lng: 105.813035},
+      'node384': {lat: 21.010210, lng: 105.812936},
+      'node385': {lat: 21.010457, lng: 105.812699},
+      'node386': {lat: 21.010529, lng: 105.812606},
+      'node387': {lat: 21.010744, lng: 105.812288},
+      'node388': {lat: 21.011087, lng: 105.811933},
+      'node389': {lat: 21.010841, lng: 105.812139},
+      'node390': {lat: 21.011195, lng: 105.811821},
+      'node391': {lat: 21.010283, lng: 105.813508},
+      'node392': {lat: 21.010329, lng: 105.813626},
+      'node393': {lat: 21.010449, lng: 105.813777},
+      'node394': {lat: 21.011122, lng: 105.813848},
+      'node395': {lat: 21.011252, lng: 105.813782},
+      'node396': {lat: 21.011610, lng: 105.814406},
+      'node397': {lat: 21.011339, lng: 105.813284},
+      'node398': {lat: 21.011131, lng: 105.812865},  
+      'node399': {lat: 21.012747, lng: 105.808143},
+      'node400': {lat: 21.010815, lng: 105.810864},
+      'node401': {lat: 21.010773, lng: 105.810927},
+      'node402': {lat: 21.010698, lng: 105.811022},
+      'node403': {lat: 21.009508, lng: 105.813088},
+      'node404': {lat: 21.009090, lng: 105.813753},
+      'node405': {lat: 21.009047, lng: 105.813825},
+      'node406': {lat: 21.008780, lng: 105.814233},
+      'node407': {lat: 21.008888, lng: 105.814322},
+      'node408': {lat: 21.008973, lng: 105.814217},
+      'node409': {lat: 21.009021, lng: 105.814467},
+      'node410': {lat: 21.014617, lng: 105.805964},
+      'node411': {lat: 21.013952, lng: 105.806736},
+      'node412': {lat: 21.012849, lng: 105.808234},
+      'node413': {lat: 21.010973, lng: 105.810999},
+      'node414': {lat: 21.010883, lng: 105.811154},
+      'node415': {lat: 21.009617, lng: 105.813132},
+      'node416': {lat: 21.015885, lng: 105.814362},
+      'node417': {lat: 21.015333, lng: 105.814052},
+      'node418': {lat: 21.016226, lng: 105.814837},
+      'node419': {lat: 21.016547, lng: 105.815053},
+      'node420': {lat: 21.015738, lng: 105.815155},
+      'node421': {lat: 21.016011, lng: 105.814713},
+      'node422': {lat: 21.016221, lng: 105.812735},
+      'node423': {lat: 21.016063, lng: 105.812912},
+      'node424': {lat: 21.015891, lng: 105.812830},
+      'node425': {lat: 21.015694, lng: 105.812703},
+      'node426': {lat: 21.015851, lng: 105.812906},
+      'node427': {lat: 21.015650, lng: 105.812785},
+      'node428': {lat: 21.017528, lng: 105.811094},
+      'node429': {lat: 21.017987, lng: 105.810169},
+      'node430': {lat: 21.017574, lng: 105.810459},
+      'node431': {lat: 21.012544, lng: 105.812204},
+      'node432': {lat: 21.012345, lng: 105.812162},
+      'node433': {lat: 21.013813, lng: 105.813059},
+      'node434': {lat: 21.014305, lng: 105.807145},
+      'node435': {lat: 21.015586, lng: 105.808047},
+      'node436': {lat: 21.014943, lng: 105.808117},
+      'node437': {lat: 21.015178, lng: 105.808189},
+      'node438': {lat: 21.014534, lng: 105.808191},
+      'node439': {lat: 21.014368, lng: 105.808306},
+      'node440': {lat: 21.013854, lng: 105.809159},
+      'node441': {lat: 21.013314, lng: 105.809673},
+      'node442': {lat: 21.013270, lng: 105.809741},
+      'node443': {lat: 21.013946, lng: 105.810356},
+      'node444': {lat: 21.012632758409325, lng: 105.80982000858896},
+      'node445': {lat: 21.012106757876637, lng: 105.81129357090151},
+      'node446': {lat: 21.011449694036365, lng: 105.81359143202522},
+      'node447': {lat: 21.01529088617952, lng: 105.81053883725421},
+      'node448': {lat: 21.01608624554158, lng: 105.81107215383719},
+      'node449': {lat: 21.01071963321794, lng: 105.81319757031075},
+      'node450': {lat: 21.010843375935092, lng: 105.81326377203816},
+      'node451': {lat: 21.012350137268065, lng: 105.8128849437026},
+      'node452': {lat: 21.01189193191582, lng: 105.81238337061524},
+      'node453': {lat: 21.011679103814487, lng: 105.81255771420176},
+      'node454': {lat: 21.012059690322857, lng: 105.8128876259116},
+      'node455': {lat: 21.012249983212914, lng: 105.81326313517488},
+      'node456': {lat: 21.01277829510289, lng: 105.81325240633595},
+      'node457': {lat: 21.012527910557623, lng: 105.81365741989846},
+      };
 
-    var langHaCoordinates = [
-  { lat: 21.024927161629794, lng: 105.81145650153924},
-  { lat: 21.02486433010351, lng: 105.81151220877237 },
-  { lat: 21.021484448305905, lng: 105.81195608281647 },
-  { lat: 21.021380727022844, lng: 105.81100123426229 },
-  { lat: 21.020411037192908, lng: 105.81056817615364 },
-  { lat: 21.020045372752882, lng: 105.81133469166919 },
-  { lat: 21.018742685913836, lng: 105.81057005948323 },
-  { lat: 21.01661019287588, lng: 105.81492808625161 },
-  { lat: 21.016738530085043, lng: 105.81502413610242 },
-  { lat: 21.01609156877151, lng: 105.81595638469759 },
-  { lat: 21.016056407750728, lng: 105.81592813474147 },
-  { lat: 21.01406628042467, lng: 105.81871546388143 },
-  { lat: 21.014126054952676, lng: 105.81876631380244 },
-  { lat: 21.014707976317993, lng: 105.8179583650254 },
-  { lat: 21.013981892814975, lng: 105.81900173011935 },
-  { lat: 21.011956712719037, lng: 105.81721981134484 },
-  { lat: 21.01237459216062, lng: 105.81699161402692 },
-  { lat: 21.013993509674197, lng: 105.81480322916507 },
-  { lat: 21.01298322269252, lng: 105.8141056376311 },
-  { lat: 21.01261578195293, lng: 105.81491170306926 },
-  { lat: 21.012264163171448, lng: 105.81473090335221 },
-  { lat: 21.011945947460823, lng: 105.81515841937086 },
-  { lat: 21.01043835004029, lng: 105.81412271060523 },
-  { lat: 21.010211552711, lng: 105.81417732718329 },
-  { lat: 21.010099032974328, lng: 105.81406432735709 },
-  { lat: 21.00998651315821, lng: 105.81415472721667 },
-  { lat: 21.009895090745136, lng: 105.81408504399158 },
-  { lat: 21.00911096542405, lng: 105.81468017642129 },
-  { lat: 21.008504408260634, lng: 105.81402101075967 },
-  { lat: 21.01475759550293, lng: 105.8052408790318 },
-  { lat: 21.016072623518387, lng: 105.80617877762687 },
-  { lat: 21.016464668388306, lng: 105.8061599443228 },
-  { lat: 21.016992081402243, lng: 105.80667032689044 },
-  { lat: 21.024927161629794, lng: 105.81145650153924},
-    ];
-
-    var langHaArea = new google.maps.Polygon({
-    paths: langHaCoordinates,
-    strokeOpacity: 0,
-    fillColor: '#FFE5CC',
-    fillOpacity: 0.5,
-    map:map
-  });
-    var lineSymbol = {
-        path: 'M 0,-1 0,1',
-        strokeOpacity: 0.75,
-        scale: 1
-    };
+      // Hàm tiện ích tính khoảng cách giữa 2 tọa độ (sử dụng API của Google Maps)
+      function calculateDistanceBetweenLatLng(latLng1, latLng2) {
+          if (google && google.maps && google.maps.geometry && google.maps.geometry.spherical) {
+              return google.maps.geometry.spherical.computeDistanceBetween(latLng1, latLng2);
+          }
+          // Fallback nếu API chưa load kịp (không nên xảy ra nếu script load đúng)
+          const R = 6371e3; // metres
+          const φ1 = latLng1.lat() * Math.PI/180;
+          const φ2 = latLng2.lat() * Math.PI/180;
+          const Δφ = (latLng2.lat()-latLng1.lat()) * Math.PI/180;
+          const Δλ = (latLng2.lng()-latLng1.lng()) * Math.PI/180;
+          const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          return R * c;
+      }
+      function calculateDistanceBetweenNodeCoords(coords1, coords2) {
+          return calculateDistanceBetweenLatLng(new google.maps.LatLng(coords1.lat, coords1.lng), new google.maps.LatLng(coords2.lat, coords2.lng));
+      }
 
 
-    var langHaBorder = new google.maps.Polyline({
-        path: langHaCoordinates, 
-        strokeColor: '#FF0000',
-        strokeOpacity: 0, 
-        icons: [{
-        icon: lineSymbol,
-        offset: '0',
-        repeat: '5px' 
-        }],
-        map: map
-    });
-  
-    var flag = 0;
-    var markerStart = new google.maps.Marker({
-        map: map,
-        title: 'Start Location', 
-        icon: {
-        url: './assets/img/icon.png',
-        scaledSize: new google.maps.Size(20, 30)
-        }
-    });
-    var markerEnd = new google.maps.Marker({
-        map: map,
-        title: 'End Location', 
-        icon: {
-        url: './assets/img/icon.png',
-        scaledSize: new google.maps.Size(20, 30)
-        } 
-    });
+      // Định nghĩa các cạnh và trọng số (khoảng cách)
+      // Bạn cần xây dựng graph này cẩn thận dựa trên bản đồ thực tế
+      const graph = {
+      'node1': [
+          { node: 'node2' }
+        ],
+      'node2': [
+          { node: 'node1' },
+          { node: 'node3' }
+        ],
+      'node3': [
+          { node: 'node2' },
+          { node: 'node4' },
+          { node: 'node5' }
+        ],
+      'node4': [
+          { node: 'node3' }
+        ],
+      'node5': [
+          { node: 'node3' },
+          { node: 'node6' },
+          { node: 'node7' }
+        ],
+      'node6': [
+          { node: 'node5' }
+        ],
+      'node7': [
+          { node: 'node5' },
+          { node: 'node8' }
+        ],
+      'node8': [
+          { node: 'node9' }
+        ],
+      'node9': [
+          { node: 'node10' }
+        ],
+      'node10': [
+          { node: 'node11' }
+        ],
+      'node11': [
+          { node: 'node10' },
+          { node: 'node13' }
+        ],
+      'node12': [
+          { node: 'node13' }
+        ],
+      'node13': [
+          { node: 'node12' }
+        ],
+      'node14': [
+          { node: 'node15' }
+        ],
+      'node15': [
+          { node: 'node16' },
+          { node: 'node19' }
+        ],
+      'node16': [
+          { node: 'node15' },
+          { node: 'node17' }
+        ],
+      'node17': [
+          { node: 'node16' },
+          { node: 'node18' },
+          { node: 'node26' }
+        ],
+      'node18': [
+          { node: 'node17' }
+        ],
+      'node19': [
+          { node: 'node20' },
+          { node: 'node27' },
+          { node: 'node15' }
+        ],
+      'node20': [
+          { node: 'node19' },
+          { node: 'node21' }
+        ],
+      'node21': [
+          { node: 'node20' },
+          { node: 'node22' }
+        ],
+      'node22': [
+          { node: 'node21' },
+          { node: 'node30' }
+        ],
+      'node23': [
+          { node: 'node18' },
+          { node: 'node24' }
+        ],
+      'node24': [
+          { node: 'node23' },
+          { node: 'node25' },
+          { node: 'node26' }
+        ],
+      'node25': [
+          { node: 'node24' },
+          { node: 'node28' }
+        ],
+      'node26': [
+          { node: 'node17' },
+          { node: 'node24' }
+        ],
+      'node27': [
+          { node: 'node19' },
+          { node: 'node28' }
+        ],
+      'node28': [
+          { node: 'node25' },
+          { node: 'node29' },
+          { node: 'node35' }
+        ],
+      'node29': [
+          { node: 'node28' },
+          { node: 'node30' }
+        ],
+      'node30': [
+          { node: 'node22' },
+          { node: 'node29' },
+          { node: 'node34' }
+        ],
+      'node31': [
+      
+        ],
+      'node32': [
+          { node: 'node33' }
+        ],
+      'node33': [
+          { node: 'node34' }
+        ],
+      'node34': [
+          { node: 'node33' },
+          { node: 'node30' },
+          { node: 'node35' }
+        ],
+      'node35': [
+          { node: 'node34' },
+          { node: 'node28' },
+          { node: 'node36' }
+        ],
+      'node36': [
+          { node: 'node35' },
+          { node: 'node162' },
+          { node: 'node37' }
+        ],
+      'node37': [
+          { node: 'node38' },
+          { node: 'node178' }
+        ],
+      'node38': [
+          { node: 'node183' }
+        ],
+      'node39': [
+          { node: 'node128' }
+        ],
+      'node40': [
+          { node: 'node41' }
+        ],
+      'node41': [
+          { node: 'node42' },
+          { node: 'node132' }
+        ],
+      'node42': [
+          { node: 'node43' },
+          { node: 'node134' }
+        ],
+      'node43': [
+          { node: 'node44' },
+          { node: 'node136' }
+        ],
+      'node44': [
+          { node: 'node45' },
+          { node: 'node138' }
+        ],
+      'node45': [
+          { node: 'node46' },
+          { node: 'node47' }
+        ],
+      'node46': [
+          { node: 'node47' },
+          { node: 'node48' }
+        ],
+      'node47': [
+          { node: 'node46' },
+          { node: 'node418' }
+        ],
+      'node48': [
+          { node: 'node49' },
+          { node: 'node51' }
+        ],
+      'node49': [
+          { node: 'node48' },
+          { node: 'node418' },
+          { node: 'node51' }
+        ],
+      'node50': [
+      
+        ],
+      'node51': [
+          { node: 'node54' }
+        ],
+      'node52': [
+      
+        ],
+      'node53': [
+          { node: 'node52' },
+          { node: 'node419' }
+        ],
+      'node54': [
+          { node: 'node55' },
+          { node: 'node420' }
+        ],
+      'node55': [
+          { node: 'node53' },
+          { node: 'node56' }
+        ],
+      'node56': [
+          { node: 'node57' },
+          { node: 'node102' }
+        ],
+      'node57': [
+          { node: 'node58' },
+          { node: 'node100' }
+        ],
+      'node58': [
+          { node: 'node59' }
+        ],
+      'node59': [
+          { node: 'node60' },
+          { node: 'node95' }
+        ],
+      'node60': [
+          { node: 'node61' },
+          { node: 'node74' }
+        ],
+      'node61': [
+          { node: 'node62' },
+          { node: 'node70' }
+        ],
+      'node62': [
+          { node: 'node63' },
+          { node: 'node67' }
+        ],
+      'node63': [
+          { node: 'node64' }
+        ],
+      'node64': [
+          { node: 'node65' },
+          { node: 'node89' }
+        ],
+      'node65': [
+          { node: 'node64' },
+          { node: 'node66' }
+        ],
+      'node66': [
+          { node: 'node65' },
+          { node: 'node67' },
+          { node: 'node88' }
+        ],
+      'node67': [
+          { node: 'node66' },
+          { node: 'node68' },
+          { node: 'node90' }
+        ],
+      'node68': [
+          { node: 'node67' },
+          { node: 'node69' }
+        ],
+      'node69': [
+          { node: 'node68' },
+          { node: 'node70' }
+        ],
+      'node70': [
+          { node: 'node69' },
+          { node: 'node71' }
+        ],
+      'node71': [
+          { node: 'node70' },
+          { node: 'node72' }
+        ],
+      'node72': [
+          { node: 'node71' },
+          { node: 'node73' },
+          { node: 'node78' }
+        ],
+      'node73': [
+          { node: 'node72' },
+          { node: 'node74' },
+          { node: 'node77' }
+        ],
+      'node74': [
+          { node: 'node60' },
+          { node: 'node73' },
+          { node: 'node75' }
+        ],
+      'node75': [
+          { node: 'node74' },
+          { node: 'node76' }
+        ],
+      'node76': [
+          { node: 'node75' },
+          { node: 'node93' },
+          { node: 'node95' }
+        ],
+      'node77': [
+          { node: 'node73' },
+          { node: 'node78' },
+          { node: 'node81' },
+          { node: 'node93' }
+        ],
+      'node78': [
+          { node: 'node72' },
+          { node: 'node77' },
+          { node: 'node79' }
+        ],
+      'node79': [
+          { node: 'node71' },
+          { node: 'node78' },
+          { node: 'node84' }
+        ],
+      'node80': [
+      
+        ],
+      'node81': [
+          { node: 'node77' },
+          { node: 'node82' },
+          { node: 'node92' }
+        ],
+      'node82': [
+          { node: 'node81' },
+          { node: 'node83' }
+        ],
+      'node83': [
+          { node: 'node82' },
+          { node: 'node85' }
+        ],
+      'node84': [
+          { node: 'node79' },
+          { node: 'node83' },
+          { node: 'node90' }
+        ],
+      'node85': [
+          { node: 'node83' },
+          { node: 'node86' }
+        ],
+      'node86': [
+          { node: 'node85' },
+          { node: 'node87' }
+        ],
+      'node87': [
+          { node: 'node86' },
+          { node: 'node88' }
+        ],
+      'node88': [
+          { node: 'node66' },
+          { node: 'node87' },
+          { node: 'node89' }
+        ],
+      'node89': [
+          { node: 'node88' }
+        ],
+      'node90': [
+          { node: 'node67' },
+          { node: 'node84' },
+          { node: 'node91' }
+        ],
+      'node91': [
+          { node: 'node90' }
+        ],
+      'node92': [
+          { node: 'node81' },
+          { node: 'node93' },
+          { node: 'node96' }
+        ],
+      'node93': [
+          { node: 'node77' },
+          { node: 'node92' },
+          { node: 'node97' }
+        ],
+      'node94': [
+      
+        ],
+      'node95': [
+          { node: 'node59' },
+          { node: 'node76' },
+          { node: 'node99' }
+        ],
+      'node96': [
+          { node: 'node92' },
+          { node: 'node97' },
+          { node: 'node104' }
+        ],
+      'node97': [
+          { node: 'node93' },
+          { node: 'node96' },
+          { node: 'node98' }
+        ],
+      'node98': [
+          { node: 'node97' },
+          { node: 'node103' }
+        ],
+      'node99': [
+          { node: 'node95' },
+          { node: 'node98' },
+          { node: 'node100' }
+        ],
+      'node100': [
+          { node: 'node57' },
+          { node: 'node99' },
+          { node: 'node101' }
+        ],
+      'node101': [
+          { node: 'node100' },
+          { node: 'node102' }
+        ],
+      'node102': [
+          { node: 'node56' },
+          { node: 'node101' },
+          { node: 'node103' }
+        ],
+      'node103': [
+          { node: 'node98' },
+          { node: 'node102' },
+          { node: 'node104' }
+        ],
+      'node104': [
+          { node: 'node96' },
+          { node: 'node103' }
+        ],
+      'node105': [
+          { node: 'node106' }
+        ],
+      'node106': [
+          { node: 'node105' },
+          { node: 'node107' }
+        ],
+      'node107': [
+          { node: 'node106' },
+          { node: 'node108' }
+        ],
+      'node108': [
+          { node: 'node421' },
+          { node: 'node107' },
+        ],
+      'node109': [
+          { node: 'node110' },
+          { node: 'node249' }
 
-    var totalDistance = 0;
-    var path = new google.maps.Polyline({
-                path: [],
-                geodesic: true,
-                strokeColor: '#3399FF',
-                strokeOpacity: 1.0,
-                strokeWeight: 4,
-                map:map
-            });
-    langHaArea.addListener('click', function(langHaAreaMouseEvent) {
-    var clickedLocation = langHaAreaMouseEvent.latLng;
-    if (google.maps.geometry.poly.containsLocation(clickedLocation, langHaArea)) 
-    {
-        flag = 1 - flag;
-        if (flag == 1) 
-        {
-            path.setPath([]);
-            markerEnd.setPosition(null);
-            markerStart.setPosition(clickedLocation);
-        }
-        else
-        {
-            markerEnd.setPosition(clickedLocation);
-            let pathCoordinates = [
-              { lat: markerStart.getPosition().lat(), lng: markerStart.getPosition().lng() },
-              { lat: markerEnd.getPosition().lat(), lng: markerEnd.getPosition().lng() }
-            ];
-            path.setPath(pathCoordinates);
-        }
-    }
-    });
-    let infoWindow = new google.maps.InfoWindow();
+        ],
+      'node110': [
+          { node: 'node109' },
+          { node: 'node274' }
+        ],
+      'node111': [
+          { node: 'node110' },
+          { node: 'node112' }
+        ],
+      'node112': [
+          { node: 'node111' },
+          { node: 'node113' }
+        ],
+      'node113': [
+          { node: 'node112' },
+          { node: 'node114' }
+        ],
+      'node114': [
+          { node: 'node113' },
+          { node: 'node115' },
+          { node: 'node422' }
+        ],
+      'node115': [
+          { node: 'node114' },
+          { node: 'node116' }
+        ],
+      'node116': [
+          { node: 'node115' },
+          { node: 'node117' }
+        ],
+      'node117': [
+          { node: 'node116' },
+          { node: 'node118' },
+          { node: 'node156' },
+          { node: 'node258' }
+        ],
+      'node118': [
+          { node: 'node117' },
+          { node: 'node119' },
+          { node: 'node256' }
+        ],
+      'node119': [
+          { node: 'node118' },
+          { node: 'node120' },
+          { node: 'node255' }
+        ],
+      'node120': [
+          { node: 'node119' },
+          { node: 'node155' },
+          { node: 'node121' }
+        ],
+      'node121': [
+          { node: 'node120' },
+          { node: 'node122' },
+          { node: 'node448' }
+        ],
+      'node122': [
+          { node: 'node121' },
+          { node: 'node123' },
+          { node: 'node253' }
+        ],
+      'node123': [
+          { node: 'node124' },
+          { node: 'node189' },
+          { node: 'node122' }
+        ],
+      'node124': [
+          { node: 'node125' },
+          { node: 'node123' },
+          { node: 'node166' }
+        ],
+      'node125': [
+          { node: 'node126' },
+          { node: 'node124' },
+          { node: 'node153' }
+        ],
+      'node126': [
+          { node: 'node127' },
+          { node: 'node125' },
+          { node: 'node428' }
+        ],
+      'node127': [
+          { node: 'node126' },
+          { node: 'node128' },
+          { node: 'node184' }
+        ],
+      'node128': [
+          { node: 'node127' },
+          { node: 'node129' },
+          { node: 'node39' }
+        ],
+      'node129': [
+          { node: 'node128' },
+          { node: 'node130' },
+          { node: 'node131' }
+        ],
+      'node130': [
+          { node: 'node129' },
+          { node: 'node132' }
+        ],
+      'node131': [
+          { node: 'node129' },
+          { node: 'node133' },
+          { node: 'node150' }
+        ],
+      'node132': [
+          { node: 'node41' },
+          { node: 'node133' }
+        ],
+      'node133': [
+          { node: 'node131' },
+          { node: 'node132' },
+          { node: 'node134' },
+          { node: 'node148' }
+        ],
+      'node134': [
+          { node: 'node42' },
+          { node: 'node133' },
+          { node: 'node135' }
+        ],
+      'node135': [
+          { node: 'node134' },
+          { node: 'node136' },
+          { node: 'node144' }
+        ],
+      'node136': [
+          { node: 'node43' },
+          { node: 'node135' },
+          { node: 'node137' }
+        ],
+      'node137': [
+          { node: 'node136' },
+          { node: 'node138' },
+          { node: 'node143' }
+        ],
+      'node138': [
+          { node: 'node137' },
+          { node: 'node44' },
+          { node: 'node142' }
+        ],
+      'node139': [
+          { node: 'node140' }
+        ],
+      'node140': [
+          { node: 'node139' },
+          { node: 'node141' }
+        ],
+      'node141': [
+          { node: 'node140' },
+          { node: 'node142' }
+        ],
+      'node142': [
+          { node: 'node138' },
+          { node: 'node141' },
+          { node: 'node143' }
+        ],
+      'node143': [
+          { node: 'node142' }
+        ],
+      'node144': [
+          { node: 'node135' },
+          { node: 'node146' }
+        ],
+      'node145': [
+          { node: 'node147' },
+          { node: 'node422' }
+        ],
+      'node146': [
+          { node: 'node144' },
+          { node: 'node147' },
+          { node: 'node148' }
+        ],
+      'node147': [
+          { node: 'node145' },
+          { node: 'node146' },
+          { node: 'node149' },
+          { node: 'node157' }
+        ],
+      'node148': [
+          { node: 'node146' },
+          { node: 'node149' },
+          { node: 'node150' }
+        ],
+      'node149': [
+          { node: 'node147' },
+          { node: 'node148' },
+          { node: 'node151' }
+        ],
+      'node150': [
+          { node: 'node131' },
+          { node: 'node148' },
+          { node: 'node152' },
+          { node: 'node151' }
+        ],
+      'node151': [
+          { node: 'node149' },
+          { node: 'node150' },
+          { node: 'node153' },
+          { node: 'node158' }
+        ],
+      'node152': [
+          { node: 'node150' },
+          { node: 'node153' }
+        ],
+      'node153': [
+          { node: 'node125' },
+          { node: 'node151' },
+          { node: 'node152' },
+          { node: 'node154' }
+        ],
+      'node154': [
+          { node: 'node153' },
+          { node: 'node155' }
+        ],
+      'node155': [
+          { node: 'node120' },
+          { node: 'node156' },
+          { node: 'node158' }
+        ],
+      'node156': [
+          { node: 'node155' },
+          { node: 'node157' },
+          { node: 'node117' }
+        ],
+      'node157': [
+          { node: 'node147' },
+          { node: 'node158' },
+          { node: 'node156' }
+        ],
+      'node158': [
+          { node: 'node151' },
+          { node: 'node155' },
+          { node: 'node157' }
+        ],
+      'node159': [
+          { node: 'node203' },
+          { node: 'node160' },
+          { node: 'node163' }
+        ],
+      'node160': [
+          { node: 'node159' },
+          { node: 'node161' },
+          { node: 'node168' }
+        ],
+      'node161': [
+          { node: 'node160' },
+          { node: 'node162' },
+          { node: 'node171' }
+        ],
+      'node162': [
+          { node: 'node36' },
+          { node: 'node161' },
+          { node: 'node172' }
+        ],
+      'node163': [
+          { node: 'node159' },
+          { node: 'node167' },
+          { node: 'node164' }
+        ],
+      'node164': [
+          { node: 'node165' },
+          { node: 'node168' },
+          { node: 'node176' }, // Dấu phẩy thừa đã được bỏ
+          { node: 'node205' }
+        ],
+      'node165': [
+          { node: 'node164' },
+          { node: 'node166' },
+          { node: 'node187' },
+          { node: 'node215' }
+        ],
+      'node166': [
+          { node: 'node124' },
+          { node: 'node165' },
+          { node: 'node188' }
+        ],
+      'node167': [
+          { node: 'node163' },
+          { node: 'node168' },
+          { node: 'node169' }
+        ],
+      'node168': [
+          { node: 'node160' },
+          { node: 'node167' },
+          { node: 'node170' }
+        ],
+      'node169': [
+          { node: 'node167' },
+          { node: 'node170' },
+          { node: 'node176' }
+        ],
+      'node170': [
+          { node: 'node168' },
+          { node: 'node169' },
+          { node: 'node171' }
+        ],
+      'node171': [
+          { node: 'node161' },
+          { node: 'node177' },
+          { node: 'node174' },
+          { node: 'node170' }
+        ],
+      'node172': [
+          { node: 'node162' },
+          { node: 'node173' }
+        ],
+      'node173': [
+          { node: 'node172' },
+          { node: 'node174' }
+        ],
+      'node174': [
+          { node: 'node173' },
+          { node: 'node171' },
+          { node: 'node175' }
+        ],
+      'node175': [
+          { node: 'node174' },
+          { node: 'node178' },
+          { node: 'node429' }
+        ],
+      'node176': [
+          { node: 'node164' },
+          { node: 'node169' },
+          { node: 'node177' },
+          { node: 'node182' }
+        ],
+      'node177': [
+          { node: 'node176' },
+          { node: 'node178' },
+          { node: 'node181' },
+          { node: 'node429' }
+        ],
+      'node178': [
+          { node: 'node37' },
+          { node: 'node175' },
+          { node: 'node177' }
+        ],
+      'node179': [
+          { node: 'node178' },
+          { node: 'node180' },
+          { node: 'node183' }
+        ],
+      'node180': [
+          { node: 'node179' },
+          { node: 'node181' },
+          { node: 'node184' }
+        ],
+      'node181': [
+          { node: 'node177' },
+          { node: 'node180' },
+          { node: 'node182' },
+          { node: 'node185' }
+        ],
+      'node182': [
+          { node: 'node176' },
+          { node: 'node181' },
+          { node: 'node187' }
+        ],
+      'node183': [
+          { node: 'node38' },
+          { node: 'node179' },
+          { node: 'node184' }
+        ],
+      'node184': [
+          { node: 'node180' },
+          { node: 'node183' },
+          { node: 'node185' }
+        ],
+      'node185': [
+          { node: 'node181' },
+          { node: 'node184' },
+          { node: 'node428' }
+        ],
+      'node186': [
+          { node: 'node187' },
+          { node: 'node430' },
+          { node: 'node188' }
+        ],
+      'node187': [
+          { node: 'node182' },
+          { node: 'node186' },
+          { node: 'node165' }
+        ],
+      'node188': [
+          { node: 'node166' },
+          { node: 'node186' },
+          { node: 'node428' }
+        ],
+      'node189': [
+          { node: 'node123' },
+          { node: 'node190' },
+          { node: 'node213' }
+        ],
+      'node190': [
+          { node: 'node189' },
+          { node: 'node191' },
+          { node: 'node251' }
+        ],
+      'node191': [
+          { node: 'node190' },
+          { node: 'node210' },
+          { node: 'node447' },
+          { node: 'node192' }
+        ],
+      'node192': [
+          { node: 'node191' },
+          { node: 'node193' },
+          { node: 'node209' }
+        ],
+      'node193': [
+          { node: 'node192' },
+          { node: 'node194' },
+          { node: 'node232' }
+        ],
+      'node194': [
+          { node: 'node193' },
+          { node: 'node195' }
+        ],
+      'node195': [
+          { node: 'node194' },
+          { node: 'node196' },
+          { node: 'node207' }
+        ],
+      'node196': [
+          { node: 'node197' },
+          { node: 'node195' },
+          { node: 'node216' }
+        ],
+      'node197': [
+          { node: 'node196' },
+          { node: 'node198' }
+        ],
+      'node198': [
+          { node: 'node197' },
+          { node: 'node199' }
+        ],
+      'node199': [
+          { node: 'node198' },
+          { node: 'node200' }
+        ],
+      'node200': [
+          { node: 'node201' }
+        ],
+      'node201': [
+          { node: 'node202' },
+          { node: 'node223' }
+        ],
+      'node202': [
+          { node: 'node231' },
+          { node: 'node203' }
+        ],
+      'node203': [
+      
+        ],
+      'node204': [
+      
+        ],
+      'node205': [
+          { node: 'node164' },
+          { node: 'node206' },
+          { node: 'node214' }
+        ],
+      'node206': [
+          { node: 'node205' },
+          { node: 'node211' },
+          { node: 'node208' }
+        ],
+      'node207': [
+          { node: 'node208' },
+          { node: 'node209' },
+          { node: 'node195' }
+        ],
+      'node208': [
+          { node: 'node207' },
+          { node: 'node206' }
+        ],
+      'node209': [
+          { node: 'node207' },
+          { node: 'node210' },
+          { node: 'node192' }
+        ],
+      'node210': [
+          { node: 'node209' },
+          { node: 'node211' },
+          { node: 'node191' }
+        ],
+      'node211': [
+          { node: 'node206' },
+          { node: 'node210' },
+          { node: 'node212' }
+        ],
+      'node212': [
+          { node: 'node211' },
+          { node: 'node213' },
+          { node: 'node214' }
+        ],
+      'node213': [
+          { node: 'node212' },
+          { node: 'node215' },
+          { node: 'node189' }
+        ],
+      'node214': [
+          { node: 'node205' },
+          { node: 'node212' },
+          { node: 'node215' }
+        ],
+      'node215': [
+          { node: 'node213' },
+          { node: 'node214' },
+          { node: 'node165' }
+        ],
+      'node216': [
+          { node: 'node196' },
+          { node: 'node217' }
+        ],
+      'node217': [
+          { node: 'node218' }
+        ],
+      'node218': [
+          { node: 'node219' }
+        ],
+      'node219': [
+          { node: 'node216' },
+          { node: 'node220' }
+        ],
+      'node220': [
+          { node: 'node221' },
+          { node: 'node219' }
+        ],
+      'node221': [
+          { node: 'node220' },
+          { node: 'node222' }
+        ],
+      'node222': [
+          { node: 'node221' },
+          { node: 'node223' }
+        ],
+      'node223': [
+          { node: 'node222' },
+          { node: 'node226' },
+          { node: 'node224' },
+          { node: 'node201' }
+        ],
+      'node224': [
+          { node: 'node223' },
+          { node: 'node225' }
+        ],
+      'node225': [
+          { node: 'node224' },
+          { node: 'node226' },
+          { node: 'node227' }
+        ],
+      'node226': [
+          { node: 'node223' },
+          { node: 'node225' },
+          { node: 'node228' }
+        ],
+      'node227': [
+          { node: 'node225' },
+          { node: 'node228' }
+        ],
+      'node228': [
+          { node: 'node226' },
+          { node: 'node227' }
+        ],
+      'node229': [
+          { node: 'node230' }
+        ],
+      'node230': [
+          { node: 'node229' }
+        ],
+      'node231': [
+          { node: 'node202' },
+          { node: 'node230' }
+        ],
+      'node232': [
+          { node: 'node193' },
+          { node: 'node314' },
+          { node: 'node233' }
+        ],
+      'node233': [
+          { node: 'node232' },
+          { node: 'node234' },
+          { node: 'node336' }
+        ],
+      'node234': [
+          { node: 'node233' },
+          { node: 'node236' },
+          { node: 'node337' },
+          { node: 'node235' }
+        ],
+      'node235': [
+          { node: 'node234' },
+          { node: 'node236' },
+          { node: 'node250' }
+        ],
+      'node236': [
+          { node: 'node235' },
+          { node: 'node237' },
+          { node: 'node339' }
+        ],
+      'node237': [
+          { node: 'node236' },
+          { node: 'node238' },
+          { node: 'node263' }
+        ],
+      'node238': [
+          { node: 'node237' },
+          { node: 'node239' },
+          { node: 'node340' }
+        ],
+      'node239': [
+          { node: 'node238' },
+          { node: 'node240' }
+        ],
+      'node240': [
+          { node: 'node239' },
+          { node: 'node241' },
+          { node: 'node333' }
+        ],
+      'node241': [
+          { node: 'node240' },
+          { node: 'node242' }
+        ],
+      'node242': [
+          { node: 'node241' },
+          { node: 'node243' },
+          { node: 'node268' }
+        ],
+      'node243': [
+          { node: 'node242' },
+          { node: 'node244' }
+        ],
+      'node244': [
+          { node: 'node243' },
+          { node: 'node245' }
+        ],
+      'node245': [
+          { node: 'node244' },
+          { node: 'node246' }
+        ],
+      'node246': [
+          { node: 'node431' },
+          { node: 'node245' },
+          { node: 'node247' }
+        ],
+      'node247': [
+          { node: 'node246' },
+          { node: 'node271' },
+          { node: 'node433' }
+        ],
+      'node248': [
+          { node: 'node433' },
+          { node: 'node267' }
+        ],
+      'node249': [
+          { node: 'node248' },
+          { node: 'node272' },
+          { node: 'node109' }
+        ],
+      'node250': [
+          { node: 'node235' },
+          { node: 'node263' },
+          { node: 'node447' }
+        ],
+      'node251': [
+          { node: 'node190' },
+          { node: 'node252' }
+        ],
+      'node252': [
+          { node: 'node251' },
+          { node: 'node253' }
+        ],
+      'node253': [
+          { node: 'node122' },
+          { node: 'node252' }
+        ],
+      'node254': [
+          { node: 'node448' },
+          { node: 'node255' }
+        ],
+      'node255': [
+          { node: 'node119' },
+          { node: 'node254' }
+        ],
+      'node256': [
+          { node: 'node257' },
+          { node: 'node118' }
+        ],
+      'node257': [
+          { node: 'node256' },
+          { node: 'node258' },
+          { node: 'node259' }
+        ],
+      'node258': [
+          { node: 'node117' },
+          { node: 'node257' },
+          { node: 'node266' }
+        ],
+      'node259': [
+          { node: 'node257' },
+          { node: 'node260' },
+          { node: 'node264' }
+        ],
+      'node260': [
+          { node: 'node259' },
+          { node: 'node261' }
+        ],
+      'node261': [
+          { node: 'node260' },
+          { node: 'node263' },
+          { node: 'node265' }
+        ],
+      'node262': [
+      
+        ],
+      'node263': [
+          { node: 'node261' },
+          { node: 'node250' },
+          { node: 'node237' }
+        ],
+      'node264': [
+          { node: 'node259' },
+          { node: 'node265' }
+        ],
+      'node265': [
+          { node: 'node264' },
+          { node: 'node261' }
+        ],
+      'node266': [
+          { node: 'node258' }
+        ],
+      'node267': [
+          { node: 'node112' },
+          { node: 'node248' }
+        ],
+      'node268': [
+          { node: 'node242' },
+          { node: 'node269' }
+        ],
+      'node269': [
+          { node: 'node268' }
+        ],
+      'node270': [
+          { node: 'node271' }
+        ],
+      'node271': [
+          { node: 'node270' },
+          { node: 'node247' }
+        ],
+      'node272': [
+          { node: 'node273' },
+          { node: 'node275' }
+        ],
+      'node273': [
+          { node: 'node272' },
+          { node: 'node274' }
+        ],
+      'node274': [
+          { node: 'node110' },
+          { node: 'node275' },
+          { node: 'node273' }
+        ],
+      'node275': [
+          { node: 'node272' },
+          { node: 'node274' }
+        ],
+      'node276': [
+      
+        ],
+      'node277': [
+          { node: 'node108' }
+        ],
+      'node278': [
+          { node: 'node277' },
+          { node: 'node456' }
+        ],
+      'node279': [
+          { node: 'node278' },
+          { node: 'node362' }
+        ],
+      'node280': [
+      
+        ],
+      'node281': [
+      
+        ],
+      'node282': [
+      
+        ],
+      'node283': [
+          { node: 'node367' },
+          { node: 'node289' },
+          { node: 'node457' }
+        ],
+      'node284': [
+          { node: 'node367' },
+          { node: 'node285' }
+        ],
+      'node285': [
+          { node: 'node284' },
+          { node: 'node286' }
+        ],
+      'node286': [
+          { node: 'node285' },
+          { node: 'node287' }
+        ],
+      'node287': [
+          { node: 'node286' },
+          { node: 'node288' }
+        ],
+      'node288': [
+          { node: 'node287' },
+          { node: 'node289' },
+          { node: 'node367' }
+        ],
+      'node289': [
+          { node: 'node288' },
+          { node: 'node283' }
+        ],
+      'node290': [
+          { node: 'node292' },
+          { node: 'node291' }
+        ],
+      'node291': [
+          { node: 'node290' },
+          { node: 'node293' }
+        ],
+      'node292': [
+          { node: 'node290' },
+          { node: 'node296' },
+          { node: 'node308' },
+          { node: 'node293' }
+        ],
+      'node293': [
+          { node: 'node291' },
+          { node: 'node292' },
+          { node: 'node294' },
+          { node: 'node434' }
+        ],
+      'node294': [
+          { node: 'node293' },
+          { node: 'node410' }
+        ],
+      'node295': [
+      
+        ],
+      'node296': [
+          { node: 'node292' },
+          { node: 'node297' }
+        ],
+      'node297': [
+          { node: 'node296' },
+          { node: 'node298' }
+        ],
+      'node298': [
+          { node: 'node297' },
+          { node: 'node299' }
+        ],
+      'node299': [
+          { node: 'node298' },
+          { node: 'node300' }
+        ],
+      'node300': [
+          { node: 'node299' },
+          { node: 'node301' },
+          { node: 'node317' }
+        ],
+      'node301': [
+          { node: 'node300' },
+          { node: 'node302' }
+        ],
+      'node302': [
+          { node: 'node301' },
+          { node: 'node303' }
+        ],
+      'node303': [
+          { node: 'node302' },
+          { node: 'node304' }
+        ],
+      'node304': [
+          { node: 'node303' },
+          { node: 'node305' }
+        ],
+      'node305': [
+          { node: 'node304' },
+          { node: 'node306' },
+          { node: 'node444' }
+        ],
+      'node306': [
+          { node: 'node305' },
+          { node: 'node307' }
+        ],
+      'node307': [
+          { node: 'node412' },
+          { node: 'node306'}
+        ],
+      'node308': [
+          { node: 'node292' },
+          { node: 'node309' },
+          { node: 'node435' }
+        ],
+      'node309': [
+          { node: 'node308' },
+          { node: 'node436' }
+        ],
+      'node310': [
+          { node: 'node435' },
+          { node: 'node311' },
+          { node: 'node437' }
+        ],
+      'node311': [
+          { node: 'node310' },
+          { node: 'node312' },
+          { node: 'node314' }
+        ],
+      'node312': [
+          { node: 'node437' },
+          { node: 'node311' },
+          { node: 'node438' }
+        ],
+      'node313': [
+          { node: 'node316' }
+        ],
+      'node314': [
+          { node: 'node311' },
+          { node: 'node315' }
+        ],
+      'node315': [
+          { node: 'node314' },
+          { node: 'node318' },
+          { node: 'node316' }
+        ],
+      'node316': [
+          { node: 'node313' },
+          { node: 'node317' },
+          { node: 'node315' }
+        ],
+      'node317': [
+          { node: 'node300' },
+          { node: 'node316' }
+        ],
+      'node318': [
+          { node: 'node315' },
+          { node: 'node319' },
+          { node: 'node336' }
+        ],
+      'node319': [
+          { node: 'node318' },
+          { node: 'node337' },
+          { node: 'node325' },
+          { node: 'node320' }
+        ],
+      'node320': [
+          { node: 'node319' },
+          { node: 'node321' }
+        ],
+      'node321': [
+          { node: 'node320' },
+          { node: 'node322' },
+          { node: 'node440' }
+        ],
+      'node322': [
+          { node: 'node321' },
+          { node: 'node323' }
+        ],
+      'node323': [
+          { node: 'node322' },
+          { node: 'node324' },
+          { node: 'node440' }
+        ],
+      'node324': [
+          { node: 'node323' },
+          { node: 'node302' }
+        ],
+      'node325': [
+          { node: 'node319' },
+          { node: 'node332' },
+          { node: 'node339' }
+        ],
+      'node326': [
+          { node: 'node327' }
+        ],
+      'node327': [
+          { node: 'node326' },
+          { node: 'node329' }
+        ],
+      'node328': [
+          { node: 'node303' }
+        ],
+      'node329': [
+          { node: 'node327' },
+          { node: 'node330' }
+        ],
+      'node330': [
+          { node: 'node329' },
+          { node: 'node304' },
+          { node: 'node441' }
+        ],
+      'node331': [
+          { node: 'node442' }
+        ],
+      'node332': [
+          { node: 'node335' },
+          { node: 'node443' }
+        ],
+      'node333': [
+          { node: 'node443' },
+          { node: 'node240' },
+          { node: 'node444' }
+        ],
+      'node334': [
+      
+        ],
+      'node335': [
+      
+        ],
+      'node336': [
+          { node: 'node233' },
+          { node: 'node318' }
+        ],
+      'node337': [
+          { node: 'node336' },
+          { node: 'node234' }
+        ],
+      'node338': [
+      
+        ],
+      'node339': [
+          { node: 'node325' },
+          { node: 'node337' },
+          { node: 'node236' }
+        ],
+      'node340': [
+          { node: 'node339' },
+          { node: 'node443' },
+          { node: 'node238' }
+        ],
+      'node341': [
+      
+        ],
+      'node342': [
+      
+        ],
+      'node343': [
+      
+        ],
+      'node344': [
+      
+        ],
+      'node345': [
+          { node: 'node347' }
+        ],
+      'node346': [
+          { node: 'node345' }
+        ],
+      'node347': [
+          { node: 'node307' }
+        ],
+      'node348': [
+          { node: 'node401' }
+        ],
+      'node349': [
+          { node: 'node413' }
+        ],
+      'node350': [
+          { node: 'node349' }
+        ],
+      'node351': [
+          { node: 'node350' },
+          { node: 'node445' }
+        ],
+      'node352': [
+      
+        ],
+      'node353': [
+      
+        ],
+      'node354': [
+      
+        ],
+      'node355': [
+      
+        ],
+      'node356': [
+      
+        ],
+      'node357': [
+      
+        ],
+      'node358': [
+      
+        ],
+      'node359': [
+      
+        ],
+      'node360': [
+          { node: 'node361' }
+        ],
+      'node361': [
+          { node: 'node279' }
+        ],
+      'node362': [
+          { node: 'node279' },
+          { node: 'node363' }
+        ],
+      'node363': [
+          { node: 'node362' },
+          { node: 'node364' },
+          { node: 'node451' }
+        ],
+      'node364': [
+          { node: 'node363' },
+          { node: 'node365' },
+          { node: 'node455' }
+        ],
+      'node365': [
+          { node: 'node364' }
+        ],
+      'node366': [
+      
+        ],
+      'node367': [
+          { node: 'node283' },
+          { node: 'node288' },
+          { node: 'node284' }
+        ],
+      'node368': [
+      
+        ],
+      'node369': [
+      
+        ],
+      'node370': [
+      
+        ],
+      'node371': [
+          { node: 'node414' },
+          { node: 'node390' }
+        ],
+      'node372': [
+          { node: 'node371' },
+          { node: 'node389' }
+        ],
+      'node373': [
+          { node: 'node372' },
+          { node: 'node387' }
+        ],
+      'node374': [
+          { node: 'node373' }
+        ],
+      'node375': [
+          { node: 'node374' }
+        ],
+      'node376': [
+          { node: 'node375' }
+        ],
+      'node377': [
+          { node: 'node415' },
+          { node: 'node378' }
+        ],
+      'node378': [
+          { node: 'node380' },
+          { node: 'node377' }
+        ],
+      'node379': [
+          { node: 'node377' }
+        ],
+      'node380': [
+          { node: 'node378' },
+          { node: 'node381' }
+        ],
+      'node381': [
+          { node: 'node380' },
+          { node: 'node382' },
+          { node: 'node391' }
+        ],
+      'node382': [
+          { node: 'node381' },
+          { node: 'node383' },
+          { node: 'node376' }
+        ],
+      'node383': [
+          { node: 'node382' },
+          { node: 'node384' }
+        ],
+      'node384': [
+          { node: 'node383' },
+          { node: 'node375' },
+          { node: 'node385' }
+        ],
+      'node385': [
+          { node: 'node384' },
+          { node: 'node386' },
+          { node: 'node449' }
+        ],
+      'node386': [
+          { node: 'node385' },
+          { node: 'node387' }
+        ],
+      'node387': [
+          { node: 'node386' },
+          { node: 'node389' },
+          { node: 'node378' },
+          { node: 'node398' }
+        ],
+      'node388': [
+          { node: 'node389' },
+          { node: 'node390' }
+        ],
+      'node389': [
+          { node: 'node387' },
+          { node: 'node388' },
+          { node: 'node372' }
+        ],
+      'node390': [
+          { node: 'node388' },
+          { node: 'node371' },
+          { node: 'node360' }
+        ],
+      'node391': [
+          { node: 'node381' },
+          { node: 'node392' },
+          { node: 'node393' }
+        ],
+      'node392': [
+          { node: 'node391' },
+          { node: 'node393' }
+        ],
+      'node393': [
+          { node: 'node392' }
+        ],
+      'node394': [
+          { node: 'node395' },
+          { node: 'node385' },
+          { node: 'node450' }
+        ],
+      'node395': [
+          { node: 'node394' },
+          { node: 'node396' },
+          { node: 'node446' }
+        ],
+      'node396': [
+          { node: 'node395' }
+        ],
+      'node397': [
+          { node: 'node446' },
+          { node: 'node398' }
+        ],
+      'node398': [
+          { node: 'node397' },
+          { node: 'node387' }
+        ],
+      'node399': [
+          { node: 'node400' }
+        ],
+      'node400': [
+          { node: 'node401' }
+        ],
+      'node401': [
+          { node: 'node402' }
+        ],
+      'node402': [
+          { node: 'node403' }
+        ],
+      'node403': [
+          { node: 'node404' }
+        ],
+      'node404': [
+          { node: 'node405' }
+        ],
+      'node405': [
+          { node: 'node406' }
+        ],
+      'node406': [
+      
+        ],
+      'node407': [
+          { node: 'node406' },
+          { node: 'node408' }
+        ],
+      'node408': [
+          { node: 'node379' }
+        ],
+      'node409': [
+          { node: 'node407' },
+          { node: 'node408' }
+        ],
+      'node410': [
+      
+        ],
+      'node411': [
+          { node: 'node294' },
+          { node: 'node410' }
+        ],
+      'node412': [
+          { node: 'node411' }
+        ],
+      'node413': [
+          { node: 'node408' },
+          { node: 'node346' }
+        ],
+      'node414': [
+          { node: 'node360' }
+        ],
+      'node415': [
+          { node: 'node376' }
+        ],
+      'node416': [
+          { node: 'node417' }
+        ],
+      'node417': [
+          { node: 'node109' }
+        ],
+      'node418': [
+          { node: 'node47' },
+          { node: 'node49' }
+        ],
+      'node419': [
+          { node: 'node52' }
+        ],
+      'node420': [
+          { node: 'node421' },
+          { node: 'node54' }
+        ],
+      'node421': [
+          { node: 'node418' }
+        ],
+      'node422': [
+          { node: 'node145' },
+          { node: 'node428' },
+          { node: 'node114' }
+        ],
+      'node423': [
+          { node: 'node422' },
+          { node: 'node424' }
+        ],
+      'node424': [
+          { node: 'node423' },
+          { node: 'node426' },
+          { node: 'node425' }
+        ],
+      'node425': [
+          { node: 'node424' },
+          { node: 'node427' }
+        ],
+      'node426': [
+          { node: 'node424' },
+          { node: 'node427' }
+        ],
+      'node427': [
+          { node: 'node425' },
+          { node: 'node426' }
+        ],
+      'node428': [
+          { node: 'node185' },
+          { node: 'node126' },
+          { node: 'node188' }
+        ],
+      'node429': [
+          { node: 'node171' },
+          { node: 'node177' },
+          { node: 'node175' }
+        ],
+      'node430': [
+          { node: 'node181' },
+          { node: 'node182' },
+          { node: 'node186' }
+        ],
+      'node431': [
+          { node: 'node351' },
+          { node: 'node432' }
+        ],
+      'node432': [
+          { node: 'node279' },
+          { node: 'node348' }
+        ],
+      'node433': [
+          { node: 'node247' },
+          { node: 'node277' }
+        ],
+      'node434': [
+          { node: 'node298' },
+          { node: 'node411' }
+        ],
+      'node435': [
+          { node: 'node308' },
+          { node: 'node310' }
+        ],
+      'node436': [
+          { node: 'node309' },
+          { node: 'node297' }
+        ],
+      'node437': [
+          { node: 'node310' },
+          { node: 'node312' }
+        ],
+      'node438': [
+          { node: 'node247' },
+          { node: 'node277' }
+        ],
+      'node439': [
+          { node: 'node438' },
+          { node: 'node299' }
+        ],
+      'node440': [
+          { node: 'node323' },
+          { node: 'node321' }
+        ],
+      'node441': [
+          { node: 'node442' },
+          { node: 'node330' }
+        ],
+      'node442': [
+          { node: 'node441' },
+          { node: 'node331' }
+        ],
+      'node443': [
+          { node: 'node332' },
+          { node: 'node333' }
+        ],
+      'node444': [
+          { node: 'node305' },
+          { node: 'node333' }
+        ],
+      'node445': [
+          { node: 'node351' }
+        ],
+      'node446': [
+          { node: 'node395' },
+          { node: 'node397' }
+        ],
+      'node447': [
+          { node: 'node191' },
+          { node: 'node250' }
+        ],
+      'node448': [
+          { node: 'node121' },
+          { node: 'node254' }
+        ],
+      'node449': [
+          { node: 'node385' },
+          { node: 'node450' }
+        ],
+      'node450': [
+          { node: 'node394' },
+          { node: 'node449' }
+        ],
+      'node451': [
+          { node: 'node368' },
+          { node: 'node452' }
+        ],
+      'node452': [
+          { node: 'node451' },
+          { node: 'node453' }
+        ],
+      'node453': [
+          { node: 'node452' },
+          { node: 'node454' }
+        ],
+      'node454': [
+          { node: 'node453' },
+          { node: 'node455' }
+        ],
+      'node455': [
+          { node: 'node454' },
+          { node: 'node364' }
+        ],
+      'node456': [
+          { node: 'node278' },
+          { node: 'node457' }
+        ],
+      'node457': [
+          { node: 'node456' },
+          { node: 'node283' }
+        ],
+  };
 
-    path.addListener('mouseover', function(event) {
-        infoWindow.setContent(`Total distance: ${totalDistance.toFixed(2)}m`);
-        infoWindow.setPosition(event.latLng);
-        infoWindow.open(map);
-    });
+      // 2. Hàm tìm nút gần nhất với một điểm LatLng
+      function findNearestNode(targetLatLng, allNodes) {
+          let nearestNodeId = null;
+          let minDistance = Infinity;
 
-    path.addListener('mouseout', function() {
-        infoWindow.close();
-    });
-    map.addListener('click', function(mapsMouseEvent)
-    {
-        flag = 0;
-        var clickedLocation = mapsMouseEvent.latLng;
-        if (!google.maps.geometry.poly.containsLocation(clickedLocation, langHaArea)) 
-        {
-            markerStart.setPosition(null);
-            markerEnd.setPosition(null);
-            path.setPath([]);
-        }
-    });
+          for (const nodeId in allNodes) {
+              const nodeLatLng = new google.maps.LatLng(allNodes[nodeId].lat, allNodes[nodeId].lng);
+              const distance = calculateDistanceBetweenLatLng(targetLatLng, nodeLatLng);
+              if (distance < minDistance) {
+                  minDistance = distance;
+                  nearestNodeId = nodeId;
+              }
+          }
+          return nearestNodeId;
+      }
+
+      // 3. Thuật toán A* (phiên bản cơ bản)
+      function aStarSearch(graphData, nodeData, startNodeId, endNodeId, blockedSegmentsArray) {
+          let openSet = new Set([startNodeId]); // Các nút đang chờ duyệt
+          let cameFrom = {}; // Lưu trữ nút cha để dựng lại đường đi
+
+          let gScore = {}; // Chi phí từ nút bắt đầu đến nút hiện tại
+          for (let nodeId in nodeData) gScore[nodeId] = Infinity;
+          gScore[startNodeId] = 0;
+
+          let fScore = {}; // Tổng chi phí ước tính (gScore + heuristic)
+          for (let nodeId in nodeData) fScore[nodeId] = Infinity;
+          fScore[startNodeId] = heuristic(nodeData[startNodeId], nodeData[endNodeId]);
+
+          function heuristic(nodeACoords, nodeBCoords) {
+              // Heuristic là khoảng cách đường chim bay
+              return calculateDistanceBetweenNodeCoords(nodeACoords, nodeBCoords);
+          }
+
+          function reconstructPath(cameFromData, current) {
+              const totalPath = [current];
+              while (current in cameFromData) {
+                  current = cameFromData[current];
+                  totalPath.unshift(current);
+              }
+              return totalPath;
+          }
+
+          while (openSet.size > 0) {
+              // ... (phần tìm 'current' node giữ nguyên) ...
+              let current = null;
+              let lowestFScore = Infinity;
+              for (let nodeId of openSet) {
+                  if (fScore[nodeId] < lowestFScore) {
+                      lowestFScore = fScore[nodeId];
+                      current = nodeId;
+                  }
+              }
+              if (current === endNodeId) {
+                  return reconstructPath(cameFrom, current); // Tìm thấy đường
+              }
+
+              openSet.delete(current);
+
+              if (!graphData[current]) continue; // Nút không có hàng xóm (hoặc không có trong graph)
+
+              for (let neighborEdge of graphData[current]) {
+                  let neighborNodeId = neighborEdge.node;
+
+                  if (!nodeData[neighborNodeId] || (nodeData[neighborNodeId].lat === 0 && nodeData[neighborNodeId].lng === 0)) {
+                  continue;
+              }
+
+              // === KIỂM TRA CẠNH BỊ CHẶN ===
+              let isEdgeBlocked = false;
+              if (blockedSegmentsArray && blockedSegmentsArray.length > 0) {
+                  for (const segment of blockedSegmentsArray) {
+                      // Một cạnh (current -> neighborNodeId) bị chặn nếu nó là một phần của một segment bị chặn
+                      for (let i = 0; i < segment.length - 1; i++) {
+                          if (segment[i] === current && segment[i+1] === neighborNodeId) {
+                              isEdgeBlocked = true;
+                              break;
+                          }
+                          // Kiểm tra chiều ngược: neighborNodeId -> current
+                          if (segment[i] === neighborNodeId && segment[i+1] === current) {
+                              isEdgeBlocked = true;
+                              break;
+                          }
+                      }
+                      if (isEdgeBlocked) break;
+                  }
+              }
+              if (isEdgeBlocked) {
+                  // console.log(`Edge ${current} -> ${neighborNodeId} is blocked.`);
+                  continue; // Bỏ qua cạnh này
+              }
+              // =============================
+
+              let distanceToNeighbor = calculateDistanceBetweenNodeCoords(nodeData[current], nodeData[neighborNodeId]);
+              if (distanceToNeighbor === Infinity || isNaN(distanceToNeighbor)) {
+                  continue;
+              }
+
+              let tentativeGScore = gScore[current] + distanceToNeighbor;
+
+              if (tentativeGScore < (gScore[neighborNodeId] === undefined ? Infinity : gScore[neighborNodeId])) {
+                  cameFrom[neighborNodeId] = current;
+                  gScore[neighborNodeId] = tentativeGScore;
+                  if (nodeData[neighborNodeId] && nodeData[endNodeId]){
+                      fScore[neighborNodeId] = gScore[neighborNodeId] + heuristic(nodeData[neighborNodeId], nodeData[endNodeId]);
+                  } else {
+                      fScore[neighborNodeId] = Infinity;
+                  }
+                  if (!openSet.has(neighborNodeId)) {
+                      openSet.add(neighborNodeId);
+                  }
+              }
+          }
+      }
+      // console.log("Pathfinding failed, openSet became empty.");
+          return null;
+      }
+
+      //4. Hàm hiển thị node trên bản đồ
+      // --- ĐOẠN CODE ĐỂ HIỂN THỊ CÁC NODES LÊN BẢN ĐỒ ---
+      // Sửa đổi hàm displayGraphNodes
+      function displayGraphNodes(nodesToDisplay, mapInstance) {
+          // Xóa các marker cũ (nếu có)
+          for (const nodeId in nodeMarkers) {
+              if (nodeMarkers.hasOwnProperty(nodeId)) {
+                  nodeMarkers[nodeId].setMap(null);
+              }
+          }
+          nodeMarkers = {}; // Reset đối tượng lưu marker
+
+          for (const nodeId in nodesToDisplay) {
+              if (nodesToDisplay.hasOwnProperty(nodeId) && nodesToDisplay[nodeId].lat !== 0 && nodesToDisplay[nodeId].lng !== 0) {
+                  const nodeData = nodesToDisplay[nodeId];
+                  const marker = new google.maps.Marker({
+                      position: { lat: nodeData.lat, lng: nodeData.lng },
+                      map: mapInstance,
+                      title: `Node ID: ${nodeId}`,
+                      icon: getNodeMarkerIcon(nodeId), // Sử dụng hàm mới để lấy icon
+                      label: {
+                          text: nodeId.replace('node','').substring(0,3),
+                          color: "white",
+                          fontSize: "10px"
+                      }
+                  });
+
+                  // Lưu marker lại để có thể tương tác
+                  nodeMarkers[nodeId] = marker;
+
+                  // Gắn sự kiện click (sẽ được kích hoạt/hủy kích hoạt bởi isAdminBlockingMode)
+                  marker.addListener('click', () => {
+                      handleNodeMarkerClickForBlocking(nodeId);
+                  });
+              }
+          }
+      }
+      // Phần chặn đường 
+      // --- BIẾN TOÀN CỤC CHO CHỨC NĂNG CHẶN ĐƯỜNG ---
+  let isAdminBlockingMode = false; // Trạng thái admin có đang ở chế độ chọn node để chặn không
+  let currentSelectedNodesForBlocking = []; // Mảng lưu các nodeId admin đang chọn tạm thời
+  let blockedSegments = []; // Mảng lưu các đoạn đường đã bị chặn, ví dụ: [['node1', 'node2'], ['node5', 'node8', 'node9']]
+  let nodeMarkers = {}; // Để lưu trữ các đối tượng marker của node, giúp tương tác (thêm/xóa listener)
+  let tempBlockPathPolyline = null; // Polyline để hiển thị đoạn đang chọn
+  let blockedPathPolylines = []; // Mảng lưu các polyline của các đoạn đã bị chặn
+
+  // --- HÀM TIỆN ÍCH CHO CHỨC NĂNG CHẶN ĐƯỜNG ---
+
+  // Hàm tải các đoạn đường đã chặn từ localStorage
+  function loadBlockedSegments() {
+      const savedSegments = localStorage.getItem('blockedSegmentsData');
+      if (savedSegments) {
+          blockedSegments = JSON.parse(savedSegments);
+      } else {
+          blockedSegments = [];
+      }
   }
-  
-  </script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDTUO3uE5ySdbJUCmcbymI5RBfW-cRZCng&callback=initMap&libraries=geometry" async defer></script>
-</body>
+
+  // Hàm lưu các đoạn đường đã chặn vào localStorage
+  function saveBlockedSegments() {
+      localStorage.setItem('blockedSegmentsData', JSON.stringify(blockedSegments));
+  }
+
+  // Hàm vẽ lại các đoạn đường đã bị chặn (màu đỏ)
+  function redrawBlockedSegments(mapInstance) {
+      // Xóa các polyline cũ
+      blockedPathPolylines.forEach(polyline => polyline.setMap(null));
+      blockedPathPolylines = [];
+
+      blockedSegments.forEach(segmentNodeIds => {
+          if (segmentNodeIds.length < 2) return;
+          let segmentCoords = segmentNodeIds.map(nodeId => ({ lat: nodes[nodeId].lat, lng: nodes[nodeId].lng }));
+          const blockedPolyline = new google.maps.Polyline({
+              path: segmentCoords,
+              geodesic: true,
+              strokeColor: '#FF0000', // Màu đỏ cho đường bị chặn
+              strokeOpacity: 0.8,
+              strokeWeight: 5,
+              map: mapInstance,
+              zIndex: google.maps.Marker.MAX_ZINDEX + 1 // Đảm bảo nó nổi lên trên
+          });
+          blockedPathPolylines.push(blockedPolyline);
+      });
+  }
+
+  // Hàm cập nhật hiển thị danh sách các đoạn đã chặn trong panel admin
+  function updateBlockedSegmentsListDisplay() {
+      const listDiv = document.getElementById('blockedSegmentsList');
+      if (!listDiv) return;
+      listDiv.innerHTML = '<p><strong>Các đoạn đường đã chặn:</strong></p>';
+      if (blockedSegments.length === 0) {
+          listDiv.innerHTML += '<p><em>Chưa có đoạn nào bị chặn.</em></p>';
+          return;
+      }
+      const ul = document.createElement('ul');
+      blockedSegments.forEach((segment, index) => {
+          const li = document.createElement('li');
+          li.textContent = segment.join(' -> ');
+          const removeButton = document.createElement('button');
+          removeButton.textContent = 'Bỏ chặn';
+          removeButton.style.marginLeft = '10px';
+          removeButton.onclick = function() {
+              const removedSegment = blockedSegments.splice(index, 1)[0]; // Lấy ra đoạn vừa xóa
+              saveBlockedSegments();
+              redrawBlockedSegments(map); // map là biến global của Google Map instance
+              updateBlockedSegmentsListDisplay();
+              // Cập nhật lại icon cho các node thuộc đoạn vừa được bỏ chặn
+              if (removedSegment) {
+                  removedSegment.forEach(nodeId => {
+                      // Chỉ cập nhật nếu node đó không còn thuộc bất kỳ đoạn bị chặn nào khác
+                      let stillBlocked = false;
+                      for (const segment of blockedSegments) {
+                          if (segment.includes(nodeId)) {
+                              stillBlocked = true;
+                              break;
+                          }
+                      }
+                      if (!stillBlocked && nodeMarkers[nodeId]) {
+                          // Nếu không còn bị chặn và không phải là node đang được chọn trong chế độ chặn
+                          const isCurrentlySelectedForBlocking = currentSelectedNodesForBlocking.includes(nodeId);
+                          nodeMarkers[nodeId].setIcon(getNodeMarkerIcon(nodeId, false, isCurrentlySelectedForBlocking));
+                      }
+                  });
+              }
+          };
+          li.appendChild(removeButton);
+          ul.appendChild(li);
+      });
+      listDiv.appendChild(ul);
+  }
+
+
+  // Hàm xử lý khi click vào một node marker ở chế độ chặn đường
+  function handleNodeMarkerClickForBlocking(nodeId) {
+      if (!isAdminBlockingMode) return;
+
+      const nodeIndex = currentSelectedNodesForBlocking.indexOf(nodeId);
+      if (nodeIndex > -1) { // Nếu node đã được chọn -> bỏ chọn
+          currentSelectedNodesForBlocking.splice(nodeIndex, 1);
+          nodeMarkers[nodeId].setIcon(getNodeMarkerIcon(nodeId, false)); // Trả lại icon thường
+      } else { // Nếu node chưa được chọn -> thêm vào lựa chọn
+          // Kiểm tra tính liên tiếp (nếu không phải node đầu tiên)
+          if (currentSelectedNodesForBlocking.length > 0) {
+              const lastSelectedNode = currentSelectedNodesForBlocking[currentSelectedNodesForBlocking.length - 1];
+              // Kiểm tra xem nodeId có phải là hàng xóm của lastSelectedNode không
+              const neighborsOfLast = graph[lastSelectedNode] ? graph[lastSelectedNode].map(edge => edge.node) : [];
+              if (!neighborsOfLast.includes(nodeId)) {
+                  alert("Vui lòng chọn node liên tiếp với node đã chọn trước đó!");
+                  return;
+              }
+          }
+          currentSelectedNodesForBlocking.push(nodeId);
+          nodeMarkers[nodeId].setIcon(getNodeMarkerIcon(nodeId, true, true)); // Icon cho node đang chọn
+      }
+
+      // Cập nhật polyline tạm thời hiển thị đoạn đang chọn
+      if (tempBlockPathPolyline) {
+          tempBlockPathPolyline.setMap(null);
+      }
+      if (currentSelectedNodesForBlocking.length >= 2) {
+          let tempCoords = currentSelectedNodesForBlocking.map(id => ({ lat: nodes[id].lat, lng: nodes[id].lng }));
+          tempBlockPathPolyline = new google.maps.Polyline({
+              path: tempCoords,
+              strokeColor: '#FFA500', // Màu cam cho đoạn đang chọn
+              strokeOpacity: 0.7,
+              strokeWeight: 6,
+              map: map, // map là biến global của Google Map instance
+              zIndex: google.maps.Marker.MAX_ZINDEX // Nổi lên trên đường thường, dưới đường bị chặn
+          });
+      }
+      document.getElementById('btnConfirmBlockSegment').disabled = currentSelectedNodesForBlocking.length < 2;
+  }
+
+  // Hàm tạo icon cho node marker (thường, bị chặn, đang chọn)
+  function getNodeMarkerIcon(nodeId, isSelectedForBlocking = false, isCurrentlySelected = false) {
+      let fillColor = "blue"; // Mặc định
+      let scale = 5;
+
+      // Kiểm tra xem node có nằm trong một đoạn đã bị chặn không
+      let isPartOfBlockedSegment = false;
+      for (const segment of blockedSegments) {
+          if (segment.includes(nodeId)) {
+              isPartOfBlockedSegment = true;
+              break;
+          }
+      }
+
+      if (isCurrentlySelected) {
+          fillColor = "#FFA500"; // Cam cho node đang được chọn để chặn
+          scale = 7;
+      } else if (isSelectedForBlocking || isPartOfBlockedSegment) { // isSelectedForBlocking không còn dùng trực tiếp ở đây nữa, thay bằng isPartOfBlockedSegment
+          fillColor = "red"; // Đỏ cho node thuộc đoạn đã bị chặn
+          scale = 6;
+      }
+
+
+      return {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: scale,
+          fillColor: fillColor,
+          fillOpacity: 0.9,
+          strokeColor: "white",
+          strokeWeight: 1
+      };
+  }
+
+
+
+
+
+
+
+
+
+
+
+  //==================================================================================
+
+
+
+
+      var map; 
+      // =======================================================================
+      // PHẦN CODE GỐC CỦA BẠN (CÓ CHỈNH SỬA NHỎ ĐỂ TÍCH HỢP)
+      // =======================================================================
+      function initMap() {
+      // Tải các đoạn đường đã chặn từ localStorage
+      loadBlockedSegments();
+      var langHa = { lat: 21.0175, lng: 105.81 };
+
+      var map = new google.maps.Map(document.getElementById('map'), {
+        center: langHa,
+        zoom: 17
+      });
+
+      // Gọi hàm để vẽ các node lên bản đồ (đảm bảo hàm displayGraphNodes và biến nodes đã được định nghĩa ở phạm vi toàn cục)
+      if (typeof displayGraphNodes === 'function' && typeof nodes !== 'undefined') {
+          displayGraphNodes(nodes, map);
+      } 
+      redrawBlockedSegments(map); // Vẽ lại các đoạn đường đã bị chặn
+
+
+      var langHaCoordinates = [ // Giữ nguyên của bạn
+        { lat: 21.024927161629794, lng: 105.81145650153924},
+        { lat: 21.02486433010351, lng: 105.81151220877237 },
+        { lat: 21.021483, lng: 105.811960 }, // Kiểm tra lại tọa độ này nếu cần
+        { lat: 21.021380727022844, lng: 105.81100123426229 },
+        { lat: 21.020411037192908, lng: 105.81056817615364 },
+        { lat: 21.020045372752882, lng: 105.81133469166919 },
+        { lat: 21.018742685913836, lng: 105.81057005948323 },
+        { lat: 21.01661019287588, lng: 105.81492808625161 },
+        { lat: 21.016738530085043, lng: 105.81502413610242 },
+        { lat: 21.01609156877151, lng: 105.81595638469759 },
+        { lat: 21.016056407750728, lng: 105.81592813474147 },
+        { lat: 21.01406628042467, lng: 105.81871546388143 },
+        { lat: 21.014126054952676, lng: 105.81876631380244 },
+        { lat: 21.014707976317993, lng: 105.8179583650254 },
+        { lat: 21.013981892814975, lng: 105.81900173011935 },
+        { lat: 21.011956712719037, lng: 105.81721981134484 },
+        { lat: 21.01237459216062, lng: 105.81699161402692 },
+        { lat: 21.013993509674197, lng: 105.81480322916507 },
+        { lat: 21.01298322269252, lng: 105.8141056376311 },
+        { lat: 21.01261578195293, lng: 105.81491170306926 },
+        { lat: 21.012264163171448, lng: 105.81473090335221 },
+        { lat: 21.011945947460823, lng: 105.81515841937086 },
+        { lat: 21.01043835004029, lng: 105.81412271060523 },
+        { lat: 21.010211552711, lng: 105.81417732718329 },
+        { lat: 21.010099032974328, lng: 105.81406432735709 },
+        { lat: 21.00998651315821, lng: 105.81415472721667 },
+        { lat: 21.009895090745136, lng: 105.81408504399158 },
+        { lat: 21.00911096542405, lng: 105.81468017642129 },
+        { lat: 21.008504408260634, lng: 105.81402101075967 },
+        { lat: 21.01475759550293, lng: 105.8052408790318 },
+        { lat: 21.016072623518387, lng: 105.80617877762687 },
+        { lat: 21.016464668388306, lng: 105.8061599443228 },
+        { lat: 21.016992081402243, lng: 105.80667032689044 },
+        { lat: 21.024927161629794, lng: 105.81145650153924},
+      ];
+
+      var langHaArea = new google.maps.Polygon({
+        paths: langHaCoordinates,
+        strokeOpacity: 0,
+        fillColor: '#FFE5CC',
+        fillOpacity: 0.5,
+        map:map
+      });
+      var lineSymbol = {
+          path: 'M 0,-1 0,1',
+          strokeOpacity: 0.75,
+          scale: 1
+      };
+
+      var langHaBorder = new google.maps.Polyline({
+          path: langHaCoordinates,
+          strokeColor: '#FF0000',
+          strokeOpacity: 0,
+          icons: [{
+            icon: lineSymbol,
+            offset: '0',
+            repeat: '5px'
+          }],
+          map: map
+      });
+
+      var flag = 0;
+      var markerStart = new google.maps.Marker({
+          map: map,
+          title: 'Start Location',
+          icon: {
+            url: './assets/img/icon.png',
+            scaledSize: new google.maps.Size(20, 30)
+          }
+      });
+      var markerEnd = new google.maps.Marker({
+          map: map,
+          title: 'End Location',
+          icon: {
+            url: './assets/img/icon.png',
+            scaledSize: new google.maps.Size(20, 30)
+          }
+      });
+
+      var totalDistance = 0;
+      var pathPolyline = new google.maps.Polyline({
+                  path: [],
+                  geodesic: true,
+                  strokeColor: '#3399FF',
+                  strokeOpacity: 1.0,
+                  strokeWeight: 4,
+                  map:map
+              });
+
+      langHaArea.addListener('click', function(langHaAreaMouseEvent) {
+          var clickedLocation = langHaAreaMouseEvent.latLng;
+          if (google.maps.geometry.poly.containsLocation(clickedLocation, langHaArea))
+          {
+              flag = 1 - flag;
+              if (flag == 1) // Đặt điểm bắt đầu
+              {
+                  pathPolyline.setPath([]);
+                  markerEnd.setPosition(null);
+                  markerStart.setPosition(clickedLocation);
+                  totalDistance = 0; // Reset distance khi đặt điểm mới
+              }
+              else // flag == 0, Đặt điểm kết thúc và tìm đường
+              {
+                  markerEnd.setPosition(clickedLocation);
+
+                  const startClickLatLng = markerStart.getPosition();
+                  const endClickLatLng = markerEnd.getPosition();
+
+                  // Tìm nút gần nhất trong graph cho điểm bắt đầu và kết thúc
+                  // Đảm bảo hàm findNearestNode và biến nodes đã được định nghĩa toàn cục
+                  const startNodeId = (typeof findNearestNode === 'function' && typeof nodes !== 'undefined') ? findNearestNode(startClickLatLng, nodes) : null;
+                  const endNodeId = (typeof findNearestNode === 'function' && typeof nodes !== 'undefined') ? findNearestNode(endClickLatLng, nodes) : null;
+
+
+                  let finalPathCoordinates = [];
+
+                  if (startNodeId && endNodeId && typeof nodes !== 'undefined' && typeof graph !== 'undefined' && typeof aStarSearch === 'function') {
+                      if (startNodeId === endNodeId) {
+                          // Trường hợp 2 điểm click map vào cùng 1 node -> vẽ đường thẳng giữa 2 điểm click
+                          finalPathCoordinates = [
+                              { lat: startClickLatLng.lat(), lng: startClickLatLng.lng() },
+                              { lat: endClickLatLng.lat(), lng: endClickLatLng.lng() }
+                          ];
+                          console.log("Start and end nodes are the same or map to the same nearest node.");
+                      } else {
+                          // Gọi A* để tìm đường đi giữa các node
+                          const foundNodeIdsPath = aStarSearch(graph, nodes, startNodeId, endNodeId, blockedSegments);
+
+                          if (foundNodeIdsPath && foundNodeIdsPath.length > 0) {
+                              console.log("A* path found:", foundNodeIdsPath);
+                              // Xây dựng mảng tọa độ cho polyline
+                              // 1. Điểm click bắt đầu
+                              finalPathCoordinates.push({ lat: startClickLatLng.lat(), lng: startClickLatLng.lng() });
+
+                              // 2. Node bắt đầu gần nhất (nếu khác điểm click và là điểm đầu của A* path hoặc A* path không chứa nó)
+                              if (!(nodes[startNodeId].lat === startClickLatLng.lat() && nodes[startNodeId].lng === startClickLatLng.lng())) {
+                                  if (foundNodeIdsPath[0] === startNodeId || !foundNodeIdsPath.includes(startNodeId)) {
+                                      finalPathCoordinates.push({ lat: nodes[startNodeId].lat, lng: nodes[startNodeId].lng });
+                                  }
+                              }
+
+                              // 3. Các node trên đường đi A*
+                              foundNodeIdsPath.forEach((nodeId) => {
+                                  // Chỉ thêm nếu node đó chưa phải là node cuối cùng trong finalPathCoordinates (tránh trùng lặp)
+                                  if (finalPathCoordinates.length === 0 ||
+                                      !(finalPathCoordinates[finalPathCoordinates.length - 1].lat === nodes[nodeId].lat &&
+                                        finalPathCoordinates[finalPathCoordinates.length - 1].lng === nodes[nodeId].lng)) {
+                                      finalPathCoordinates.push({ lat: nodes[nodeId].lat, lng: nodes[nodeId].lng });
+                                  }
+                              });
+
+                              // 4. Node kết thúc gần nhất (nếu khác node cuối của A* path và khác điểm click cuối)
+                              if (foundNodeIdsPath[foundNodeIdsPath.length - 1] !== endNodeId) {
+                                  if (!(nodes[endNodeId].lat === endClickLatLng.lat() && nodes[endNodeId].lng === endClickLatLng.lng())) {
+                                      finalPathCoordinates.push({ lat: nodes[endNodeId].lat, lng: nodes[endNodeId].lng });
+                                  }
+                              }
+                              
+                              // 5. Điểm click kết thúc (chỉ thêm nếu nó khác điểm cuối cùng trong path)
+                              if (finalPathCoordinates.length === 0 ||
+                                  !(finalPathCoordinates[finalPathCoordinates.length - 1].lat === endClickLatLng.lat() &&
+                                    finalPathCoordinates[finalPathCoordinates.length - 1].lng === endClickLatLng.lng())) {
+                                  finalPathCoordinates.push({ lat: endClickLatLng.lat(), lng: endClickLatLng.lng() });
+                              }
+
+
+                          } else {
+                              // Không tìm thấy đường đi A* -> fallback vẽ đường thẳng
+                              console.log("A* did not find a path. Drawing straight line.");
+                              finalPathCoordinates = [
+                                { lat: startClickLatLng.lat(), lng: startClickLatLng.lng() },
+                                { lat: endClickLatLng.lat(), lng: endClickLatLng.lng() }
+                              ];
+                          }
+                      }
+                  } else {
+                      // Không tìm thấy node gần nhất hoặc các hàm/biến cần thiết không tồn tại -> fallback vẽ đường thẳng
+                      if (!startNodeId || !endNodeId) {
+                          console.log("Could not find nearest nodes. Drawing straight line.");
+                      } else {
+                          console.log("Required functions (aStarSearch) or variables (nodes, graph) might not be defined. Drawing straight line.");
+                      }
+                      finalPathCoordinates = [
+                        { lat: startClickLatLng.lat(), lng: startClickLatLng.lng() },
+                        { lat: endClickLatLng.lat(), lng: endClickLatLng.lng() }
+                      ];
+                  }
+
+                  // Tính tổng khoảng cách dựa trên finalPathCoordinates
+                  totalDistance = 0; // Reset trước khi tính lại
+                  if (finalPathCoordinates.length > 1) {
+                      for (let i = 0; i < finalPathCoordinates.length - 1; i++) {
+                          // Đảm bảo các điểm tọa độ hợp lệ trước khi tạo LatLng object
+                          if (finalPathCoordinates[i] && finalPathCoordinates[i+1] &&
+                              typeof finalPathCoordinates[i].lat === 'number' && typeof finalPathCoordinates[i].lng === 'number' &&
+                              typeof finalPathCoordinates[i+1].lat === 'number' && typeof finalPathCoordinates[i+1].lng === 'number') {
+                            
+                              const point1 = new google.maps.LatLng(finalPathCoordinates[i].lat, finalPathCoordinates[i].lng);
+                              const point2 = new google.maps.LatLng(finalPathCoordinates[i+1].lat, finalPathCoordinates[i+1].lng);
+                              totalDistance += google.maps.geometry.spherical.computeDistanceBetween(point1, point2);
+                          } else {
+                              console.warn("Invalid coordinates in finalPathCoordinates at index:", i, finalPathCoordinates[i], finalPathCoordinates[i+1]);
+                          }
+                      }
+                  }
+                  pathPolyline.setPath(finalPathCoordinates);
+              }
+          }
+      });
+
+      let infoWindow = new google.maps.InfoWindow();
+
+      pathPolyline.addListener('mouseover', function(event) {
+          infoWindow.setContent(`Total distance: ${totalDistance.toFixed(2)}m`);
+          infoWindow.setPosition(event.latLng);
+          infoWindow.open(map);
+      });
+
+      pathPolyline.addListener('mouseout', function() {
+          infoWindow.close();
+      });
+
+      map.addListener('click', function(mapsMouseEvent)
+      {
+          if (isAdminBlockingMode) return; // Không làm gì nếu đang ở chế độ chặn đường
+          flag = 0;
+          var clickedLocation = mapsMouseEvent.latLng;
+          if (!google.maps.geometry.poly.containsLocation(clickedLocation, langHaArea))
+          {
+              markerStart.setPosition(null);
+              markerEnd.setPosition(null);
+              pathPolyline.setPath([]);
+              totalDistance = 0; // Reset distance khi click ra ngoài
+          }
+      });
+      // --- GẮN SỰ KIỆN CHO CÁC NÚT ADMIN ---
+      document.getElementById('btnToggleBlockMode').addEventListener('click', function() {
+          isAdminBlockingMode = !isAdminBlockingMode;
+          const instructionsDiv = document.getElementById('blockingInstructions');
+          if (isAdminBlockingMode) {
+              this.textContent = 'Dừng Chặn Đường';
+              instructionsDiv.style.display = 'block';
+              alert("Chế độ chặn đường đã BẬT. Click vào các node để chọn đoạn đường.");
+              // Thay đổi icon của tất cả các node để cho biết có thể click
+              for (const nodeId in nodeMarkers) {
+                  nodeMarkers[nodeId].setIcon(getNodeMarkerIcon(nodeId, false, currentSelectedNodesForBlocking.includes(nodeId)));
+              }
+          } else {
+              this.textContent = 'Bắt đầu Chặn Đường';
+              instructionsDiv.style.display = 'none';
+              // Reset lựa chọn tạm thời và polyline tạm thời
+              currentSelectedNodesForBlocking.forEach(nodeId => { // Đảm bảo các node đang chọn được reset icon đúng
+                  if(nodeMarkers[nodeId]) nodeMarkers[nodeId].setIcon(getNodeMarkerIcon(nodeId));
+              });
+              currentSelectedNodesForBlocking = [];
+              if (tempBlockPathPolyline) {
+                  tempBlockPathPolyline.setMap(null);
+                  tempBlockPathPolyline = null;
+              }
+              document.getElementById('btnConfirmBlockSegment').disabled = true;
+              // Trả lại icon bình thường cho các node
+              for (const nodeId in nodeMarkers) {
+                  if (nodeMarkers.hasOwnProperty(nodeId)) {
+                      nodeMarkers[nodeId].setIcon(getNodeMarkerIcon(nodeId));
+                  }
+              }
+              alert("Chế độ chặn đường đã TẮT.");
+          }
+      });
+
+      document.getElementById('btnConfirmBlockSegment').addEventListener('click', function() {
+          if (currentSelectedNodesForBlocking.length < 2) {
+              alert("Vui lòng chọn ít nhất 2 node để tạo thành một đoạn đường.");
+              return;
+          }
+          // Kiểm tra xem đoạn này đã tồn tại chưa (để tránh trùng lặp)
+          const newSegmentStr = currentSelectedNodesForBlocking.join(',');
+          let alreadyExists = false;
+          for(const segment of blockedSegments) {
+              if (segment.join(',') === newSegmentStr) {
+                  alreadyExists = true;
+                  break;
+              }
+          }
+
+          if (alreadyExists) {
+              alert("Đoạn đường này đã được chặn trước đó.");
+          } else {
+              blockedSegments.push([...currentSelectedNodesForBlocking]); // Lưu một bản sao
+              saveBlockedSegments();
+              redrawBlockedSegments(map);
+              updateBlockedSegmentsListDisplay(); // Cập nhật danh sách hiển thị
+              alert(`Đã chặn đoạn: ${currentSelectedNodesForBlocking.join(' -> ')}`);
+          }
+
+          // Reset cho lần chọn tiếp theo
+          const justBlockedSegment = [...currentSelectedNodesForBlocking]; // Lưu lại để cập nhật icon
+
+          currentSelectedNodesForBlocking = [];
+          if (tempBlockPathPolyline) {
+              tempBlockPathPolyline.setMap(null);
+              tempBlockPathPolyline = null;
+          }
+          this.disabled = true;
+          // Cập nhật lại icon của tất cả các node sau khi xác nhận
+          // Đặc biệt là các node vừa được thêm vào đoạn chặn
+          justBlockedSegment.forEach(nodeId => {
+              if (nodeMarkers[nodeId]) {
+                  nodeMarkers[nodeId].setIcon(getNodeMarkerIcon(nodeId)); // getNodeMarkerIcon sẽ tự kiểm tra blockedSegments
+              }
+          }) ;
+      });
+
+      document.getElementById('btnClearSelection').addEventListener('click', function() {
+          currentSelectedNodesForBlocking.forEach(nodeId => {
+              if (nodeMarkers[nodeId]) {
+                  // Khi xóa lựa chọn, node đó có thể vẫn thuộc một đoạn đã bị chặn trước đó
+                  nodeMarkers[nodeId].setIcon(getNodeMarkerIcon(nodeId));
+      }
+          });
+          currentSelectedNodesForBlocking = [];
+          if (tempBlockPathPolyline) {
+              tempBlockPathPolyline.setMap(null);
+              tempBlockPathPolyline = null;
+          }
+          document.getElementById('btnConfirmBlockSegment').disabled = true;
+      });
+
+      document.getElementById('btnShowBlockedSegments').addEventListener('click', function() {
+          const listDiv = document.getElementById('blockedSegmentsList');
+          if (listDiv.style.display === 'none') {
+              updateBlockedSegmentsListDisplay();
+              listDiv.style.display = 'block';
+              this.textContent = 'Ẩn Các Đoạn Đã Chặn';
+          } else {
+              listDiv.style.display = 'none';
+              this.textContent = 'Hiện Các Đoạn Đã Chặn';
+          }
+      });
+    }
+
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDTUO3uE5ySdbJUCmcbymI5RBfW-cRZCng&callback=initMap&libraries=geometry" async defer></script>
+  </body>
 </html>
