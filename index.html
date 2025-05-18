@@ -30,7 +30,7 @@
   </div>
     <script>
       // =======================================================================
-      // PHẦN CODE MỚI THÊM VÀO (ĐỊNH NGHĨA GRAPH, THUẬT TOÁN)
+      // ĐỊNH NGHĨA GRAPH, THUẬT TOÁN
       // =======================================================================
 
       // 1. Dữ liệu đồ thị (Nodes và Graph)
@@ -518,7 +518,7 @@
 
 
       // Định nghĩa các cạnh và trọng số (khoảng cách)
-      // Bạn cần xây dựng graph này cẩn thận dựa trên bản đồ thực tế
+      // Xây dựng graph này dựa trên bản đồ thực tế
       const graph = {
       'node1': [
           { node: 'node2' }
@@ -1226,7 +1226,7 @@
       'node164': [
           { node: 'node165' },
           { node: 'node168' },
-          { node: 'node176' }, // Dấu phẩy thừa đã được bỏ
+          { node: 'node176' },
           { node: 'node205' }
         ],
       'node165': [
@@ -2771,20 +2771,12 @@
 
 
 
-
-
-
-
-
+  //==================================================================================
+  //
   //==================================================================================
 
 
-
-
       var map; 
-      // =======================================================================
-      // PHẦN CODE GỐC CỦA BẠN (CÓ CHỈNH SỬA NHỎ ĐỂ TÍCH HỢP)
-      // =======================================================================
       function initMap() {
       // Tải các đoạn đường đã chặn từ localStorage
       loadBlockedSegments();
@@ -2842,8 +2834,8 @@
       var langHaArea = new google.maps.Polygon({
         paths: langHaCoordinates,
         strokeOpacity: 0,
-        fillColor: '#FFE5CC',
-        fillOpacity: 0.5,
+        fillColor: '#FFE5DD',
+        fillOpacity: 0.4,
         map:map
       });
       var lineSymbol = {
@@ -3145,6 +3137,6 @@
     }
 
     </script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDTUO3uE5ySdbJUCmcbymI5RBfW-cRZCng&callback=initMap&libraries=geometry" async defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCrLSERO7jbDnAETqPjGBtb80_5hpF1mng&callback=initMap&libraries=geometry" async defer></script>
   </body>
 </html>
